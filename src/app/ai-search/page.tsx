@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { ChangeEvent} from 'react';
@@ -11,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormDescription as FormDescriptionComponent, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, AlertTriangle, Briefcase, UploadCloud, MapPin, BriefcaseBusiness, Github, Globe, Building, Map, Pin } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, Briefcase, UploadCloud, MapPin, BriefcaseBusiness, Github, Globe, Building, Map, Pin, XCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { JobCard } from '@/components/JobCard';
 import type { Job, JobType } from '@/types';
@@ -67,6 +68,18 @@ const fileToDataUri = (file: File): Promise<string> =>
     reader.readAsDataURL(file);
   });
 
+const defaultFormValues: AiSearchFormValues = {
+  skills: '',
+  resumeFile: undefined,
+  location: '',
+  country: '',
+  state: '',
+  city: '',
+  area: '',
+  jobType: '',
+  githubUrl: '',
+};
+
 export default function AiSearchPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,17 +89,7 @@ export default function AiSearchPage() {
 
   const form = useForm<AiSearchFormValues>({
     resolver: zodResolver(aiSearchFormSchema),
-    defaultValues: {
-      skills: '',
-      resumeFile: undefined,
-      location: '',
-      country: '',
-      state: '',
-      city: '',
-      area: '',
-      jobType: '',
-      githubUrl: '',
-    },
+    defaultValues: defaultFormValues,
   });
 
   const handleSaveToggle = (jobId: string) => {
@@ -105,6 +108,18 @@ export default function AiSearchPage() {
       });
     }
   };
+
+  const handleClearFilters = () => {
+    form.reset(defaultFormValues);
+    setRecommendedJobsDisplay([]);
+    setError(null);
+    // Optionally, notify user
+    toast({
+      title: "Filters Cleared",
+      description: "All search criteria have been reset.",
+    });
+  };
+
 
   const onSubmit: SubmitHandler<AiSearchFormValues> = async (data) => {
     setIsLoading(true);
@@ -137,7 +152,7 @@ export default function AiSearchPage() {
         area: data.area || undefined,
       };
       
-      const isDetailedLocationProvided = Object.values(detailedLocation).some(val => val !== undefined);
+      const isDetailedLocationProvided = Object.values(detailedLocation).some(val => val !== undefined && val !== '');
 
       const result: AiJobSearchOutput = await aiJobSearch({
         skills: data.skills,
@@ -256,8 +271,8 @@ export default function AiSearchPage() {
                     <FormItem>
                       <FormLabel className="text-md flex items-center gap-1"><MapPin className="h-4 w-4" />General Preferred Location</FormLabel>
                       <Select 
-                        value={field.value === '' ? 'All Locations' : field.value}
-                        onValueChange={(selectedValue) => field.onChange(selectedValue === 'All Locations' ? '' : selectedValue)}
+                        value={field.value || '__all_locations__'}
+                        onValueChange={(selectedValue) => field.onChange(selectedValue === '__all_locations__' ? '' : selectedValue)}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -285,7 +300,7 @@ export default function AiSearchPage() {
                     <FormItem>
                       <FormLabel className="text-md flex items-center gap-1"><Globe className="h-4 w-4" />Country</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., USA, United Kingdom" {...field} />
+                        <Input placeholder="e.g., USA, United Kingdom" {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -298,7 +313,7 @@ export default function AiSearchPage() {
                     <FormItem>
                       <FormLabel className="text-md flex items-center gap-1"><Building className="h-4 w-4" />State/Province/Region</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., California, Ontario" {...field} />
+                        <Input placeholder="e.g., California, Ontario" {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -311,7 +326,7 @@ export default function AiSearchPage() {
                     <FormItem>
                       <FormLabel className="text-md flex items-center gap-1"><Map className="h-4 w-4" />City/District</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., San Francisco, London" {...field} />
+                        <Input placeholder="e.g., San Francisco, London" {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -324,7 +339,7 @@ export default function AiSearchPage() {
                     <FormItem>
                       <FormLabel className="text-md flex items-center gap-1"><Pin className="h-4 w-4" />Specific Area/Neighborhood</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., SoMa, Shoreditch" {...field} />
+                        <Input placeholder="e.g., SoMa, Shoreditch" {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -340,8 +355,8 @@ export default function AiSearchPage() {
                     <FormItem>
                       <FormLabel className="text-lg flex items-center gap-1"><BriefcaseBusiness className="h-4 w-4" />Preferred Job Type (Optional)</FormLabel>
                       <Select 
-                        value={field.value === '' ? 'Any Type' : field.value}
-                        onValueChange={(selectedValue) => field.onChange(selectedValue === 'Any Type' ? '' : selectedValue)}
+                        value={field.value || '__any_type__'}
+                        onValueChange={(selectedValue) => field.onChange(selectedValue === '__any_type__' ? '' : selectedValue)}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -349,7 +364,7 @@ export default function AiSearchPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Any Type">Any Type</SelectItem>
+                          <SelectItem value="__any_type__">Any Type</SelectItem>
                           {allJobTypes.map((type) => (
                             <SelectItem key={type} value={type}>
                               {type}
@@ -373,6 +388,7 @@ export default function AiSearchPage() {
                           placeholder="e.g., https://github.com/yourusername"
                           className="text-base"
                           {...field}
+                          value={field.value || ''}
                         />
                       </FormControl>
                       <FormMessage />
@@ -381,20 +397,31 @@ export default function AiSearchPage() {
                 />
               </div>
 
-
-              <Button type="submit" disabled={isLoading} className="w-full sm:w-auto text-lg py-6 px-8">
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Searching...
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="mr-2 h-5 w-5" />
-                    Find My Jobs
-                  </>
-                )}
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                <Button type="submit" disabled={isLoading} className="w-full sm:w-auto text-lg py-6 px-8">
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="mr-2 h-5 w-5" />
+                      Find My Jobs
+                    </>
+                  )}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={handleClearFilters} 
+                  className="w-full sm:w-auto text-lg py-6 px-8"
+                  disabled={isLoading}
+                >
+                  <XCircle className="mr-2 h-5 w-5" />
+                  Clear All Filters
+                </Button>
+              </div>
             </form>
           </Form>
         </CardContent>
