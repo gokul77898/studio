@@ -58,8 +58,7 @@ When responding, always:
 {{#if chatHistory}}
 Conversation History:
 {{#each chatHistory}}
-  {{#if (eq this.role "user")}}User: {{this.parts.0.text}}{{/if}}
-  {{#if (eq this.role "model")}}AI: {{this.parts.0.text}}{{/if}}
+{{this.role}}: {{this.parts.0.text}}
 {{/each}}
 {{/if}}
 
@@ -113,3 +112,4 @@ const careerAdvisorFlow = ai.defineFlow(
     return output;
   }
 );
+
