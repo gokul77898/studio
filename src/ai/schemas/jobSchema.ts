@@ -1,5 +1,4 @@
 
-'use server';
 /**
  * @fileOverview Zod schemas for Job data structures used in AI flows.
  *
