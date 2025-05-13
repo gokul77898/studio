@@ -15,6 +15,10 @@ const initialFilters: FilterCriteria = {
   keyword: '',
   location: '',
   jobTypes: [],
+  country: '',
+  state: '',
+  city: '',
+  area: '',
 };
 
 export default function HomePage() {
@@ -49,25 +53,55 @@ export default function HomePage() {
       toast({
         title: "Job Saved!",
         description: "The job has been added to your saved list.",
-        variant: "default", // 'default' is a valid variant or you can remove this line for default
+        variant: "default",
       });
     }
   };
 
   const filteredJobs = useMemo(() => {
     return allJobs.filter(job => {
+      const jobLocationLower = job.location.toLowerCase();
+
       const keywordMatch = filters.keyword.toLowerCase()
         ? job.title.toLowerCase().includes(filters.keyword.toLowerCase()) ||
           job.company.toLowerCase().includes(filters.keyword.toLowerCase()) ||
           job.description.toLowerCase().includes(filters.keyword.toLowerCase())
         : true;
-      const locationMatch = filters.location
-        ? job.location.toLowerCase() === filters.location.toLowerCase()
+      
+      // General location dropdown filter
+      const generalLocationMatch = filters.location && filters.location !== 'All Locations'
+        ? jobLocationLower === filters.location.toLowerCase() || (filters.location.toLowerCase() === 'remote' && jobLocationLower === 'remote')
         : true;
+
+      // Detailed location filters
+      const countryMatch = filters.country
+        ? jobLocationLower.includes(filters.country.toLowerCase())
+        : true;
+      const stateMatch = filters.state
+        ? jobLocationLower.includes(filters.state.toLowerCase())
+        : true;
+      const cityMatch = filters.city
+        ? jobLocationLower.includes(filters.city.toLowerCase())
+        : true;
+      // Area match might be too specific for job.location strings, but included for completeness
+      const areaMatch = filters.area 
+        ? jobLocationLower.includes(filters.area.toLowerCase())
+        : true;
+      
+      const detailedLocationProvided = !!(filters.country || filters.state || filters.city || filters.area);
+      
+      let locationCombinedMatch = generalLocationMatch;
+      if (detailedLocationProvided) {
+        // If detailed fields are used, they must ALL match, AND general location (if not 'All Locations')
+        locationCombinedMatch = countryMatch && stateMatch && cityMatch && areaMatch && (filters.location === 'All Locations' || filters.location === '' || generalLocationMatch);
+      }
+
+
       const jobTypeMatch = filters.jobTypes.length > 0
         ? filters.jobTypes.includes(job.type)
         : true;
-      return keywordMatch && locationMatch && jobTypeMatch;
+        
+      return keywordMatch && locationCombinedMatch && jobTypeMatch;
     });
   }, [allJobs, filters]);
 

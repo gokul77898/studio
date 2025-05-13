@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, ListFilter, XCircle } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Search, ListFilter, XCircle, MapPin, Globe, Building, Map as MapIcon, Pin } from 'lucide-react'; // Renamed Map to MapIcon to avoid conflict
 import { jobTypes as allJobTypes, locations as allLocations } from '@/data/mockJobs';
 
 
@@ -18,12 +18,13 @@ interface JobFiltersProps {
 }
 
 export function JobFilters({ filters, onFilterChange, onClearFilters }: JobFiltersProps) {
-  const handleKeywordChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    onFilterChange({ ...filters, keyword: event.target.value });
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    onFilterChange({ ...filters, [name]: value });
   };
 
   const handleLocationChange = (value: string) => {
-    onFilterChange({ ...filters, location: value === 'All Locations' ? '' : value });
+    onFilterChange({ ...filters, location: value === '__all_locations__' ? '' : value });
   };
 
   const handleJobTypeChange = (jobType: JobType) => {
@@ -41,32 +42,33 @@ export function JobFilters({ filters, onFilterChange, onClearFilters }: JobFilte
           Filter Jobs
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
           <div className="space-y-2">
             <Label htmlFor="keyword">Keyword</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 id="keyword"
+                name="keyword"
                 type="text"
                 placeholder="Job title, company, skills..."
                 value={filters.keyword}
-                onChange={handleKeywordChange}
+                onChange={handleInputChange}
                 className="pl-10"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="location">Location</Label>
-            <Select value={filters.location || 'All Locations'} onValueChange={handleLocationChange}>
+            <Label htmlFor="location" className="flex items-center gap-1"><MapPin className="h-4 w-4" />General Location</Label>
+            <Select value={filters.location || '__all_locations__'} onValueChange={handleLocationChange}>
               <SelectTrigger id="location" className="w-full">
                 <SelectValue placeholder="Select location" />
               </SelectTrigger>
               <SelectContent>
                 {allLocations.map((loc) => (
-                  <SelectItem key={loc} value={loc}>
+                  <SelectItem key={loc} value={loc === 'All Locations' ? '__all_locations__' : loc}>
                     {loc}
                   </SelectItem>
                 ))}
@@ -76,28 +78,81 @@ export function JobFilters({ filters, onFilterChange, onClearFilters }: JobFilte
 
           <div className="space-y-2 md:col-span-2 lg:col-span-1">
             <Label>Job Type</Label>
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-x-4 gap-y-2 pt-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2 pt-2">
               {allJobTypes.map((jobType) => (
                 <div key={jobType} className="flex items-center space-x-2">
                   <Checkbox
-                    id={`jobType-${jobType}`}
+                    id={`jobFilterType-${jobType}`}
                     checked={filters.jobTypes.includes(jobType)}
                     onCheckedChange={() => handleJobTypeChange(jobType)}
                   />
-                  <Label htmlFor={`jobType-${jobType}`} className="font-normal whitespace-nowrap">
+                  <Label htmlFor={`jobFilterType-${jobType}`} className="font-normal whitespace-nowrap">
                     {jobType}
                   </Label>
                 </div>
               ))}
             </div>
           </div>
-          
-          <div className="md:col-span-2 lg:col-span-1 flex justify-end">
-            <Button onClick={onClearFilters} variant="outline" className="w-full lg:w-auto">
-              <XCircle className="mr-2 h-4 w-4" />
-              Clear Filters
-            </Button>
+        </div>
+        
+        <div>
+          <p className="text-md font-medium mb-2">Detailed Location (Optional)</p>
+           <CardDescription className="mb-4 text-xs">
+             Specify country, state, city, or area to narrow down results. These fields will be combined with the general location filter.
+           </CardDescription>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-end">
+            <div className="space-y-2">
+              <Label htmlFor="country" className="flex items-center gap-1"><Globe className="h-4 w-4" />Country</Label>
+              <Input
+                id="country"
+                name="country"
+                type="text"
+                placeholder="e.g., USA"
+                value={filters.country || ''}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="state" className="flex items-center gap-1"><Building className="h-4 w-4" />State/Province</Label>
+              <Input
+                id="state"
+                name="state"
+                type="text"
+                placeholder="e.g., California"
+                value={filters.state || ''}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="city" className="flex items-center gap-1"><MapIcon className="h-4 w-4" />City/District</Label>
+              <Input
+                id="city"
+                name="city"
+                type="text"
+                placeholder="e.g., San Francisco"
+                value={filters.city || ''}
+                onChange={handleInputChange}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="area" className="flex items-center gap-1"><Pin className="h-4 w-4" />Area/Neighborhood</Label>
+              <Input
+                id="area"
+                name="area"
+                type="text"
+                placeholder="e.g., SoMa"
+                value={filters.area || ''}
+                onChange={handleInputChange}
+              />
+            </div>
           </div>
+        </div>
+
+        <div className="flex justify-end pt-4">
+          <Button onClick={onClearFilters} variant="outline" className="w-full sm:w-auto">
+            <XCircle className="mr-2 h-4 w-4" />
+            Clear All Filters
+          </Button>
         </div>
       </CardContent>
     </Card>

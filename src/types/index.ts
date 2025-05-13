@@ -15,6 +15,10 @@ export type JobType = 'Full-time' | 'Part-time' | 'Contract' | 'Internship';
 
 export interface FilterCriteria {
   keyword: string;
-  location: string;
+  location: string; // General location from dropdown
   jobTypes: JobType[];
+  country?: string;
+  state?: string;
+  city?: string;
+  area?: string;
 }
