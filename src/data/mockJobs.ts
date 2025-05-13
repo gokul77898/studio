@@ -1,3 +1,4 @@
+
 import type { Job, JobType } from '@/types';
 
 const thirtyDaysAgo = new Date();
@@ -103,7 +104,48 @@ export const mockJobs: Job[] = [
 ];
 
 export const jobTypes: JobType[] = ['Full-time', 'Part-time', 'Contract', 'Internship'];
-// Ensure "All Locations" has a unique, non-empty value if it's to be used as a SelectItem value.
-// For filtering logic, this special value ("__all_locations__") will be treated as "no location filter".
-export const locations: string[] = ['All Locations', 'New York, NY', 'San Francisco, CA', 'London, UK', 'Austin, TX', 'Remote'];
 
+export const locations: string[] = [
+  'All Locations',
+  'Remote',
+  // USA
+  'New York, NY',
+  'San Francisco, CA',
+  'Austin, TX',
+  'Seattle, WA',
+  'Boston, MA',
+  'Chicago, IL',
+  'Los Angeles, CA',
+  'Washington D.C.',
+  // UK
+  'London, UK',
+  'Manchester, UK',
+  'Cambridge, UK',
+  'Edinburgh, UK',
+  // Canada
+  'Toronto, ON',
+  'Vancouver, BC',
+  'Montreal, QC',
+  'Waterloo, ON',
+  // Germany
+  'Berlin, Germany',
+  'Munich, Germany',
+  'Hamburg, Germany',
+  // India
+  'Bangalore, India',
+  'Hyderabad, India',
+  'Pune, India',
+  'Gurgaon, India',
+  // Japan
+  'Tokyo, Japan',
+  'Osaka, Japan',
+  // Australia
+  'Sydney, Australia',
+  'Melbourne, Australia',
+  // Singapore
+  'Singapore',
+  // France
+  'Paris, France',
+  // Netherlands
+  'Amsterdam, Netherlands',
+];
