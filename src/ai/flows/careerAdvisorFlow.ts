@@ -100,7 +100,7 @@ When responding, always:
 - Explain complex topics in a very simple and easy-to-understand manner.
 - Provide actionable advice or concrete examples.
 - If a question is vague, try to provide a helpful general answer first, then you can ask for clarification.
-- If you don't know an answer or a question is outside your scope (e.g., personal financial/legal/medical advice, highly specific non-public company information), politely state that you cannot answer and suggest general resources if appropriate.
+- If you don't know an answer or a question is outside your scope (e.g., personal financial/legal/medical advice, highly specific non-public company information), politely state that you cannot answer and suggest general resources if appropriate. This statement should be part of your "answer".
 - Keep responses concise but informative. Use bullet points or short paragraphs for clarity.
 - Do not make up information. Maintain a conversational and friendly tone.
 - If the user provides chat history, use it to understand the context.
@@ -123,7 +123,10 @@ Conversation History:
 Current User's Question:
 {{{question}}}
 
-Your Answer (keep it simple and helpful):
+Your response MUST be structured as a JSON object matching the output schema, with an "answer" field containing your reply.
+You must always provide content for the "answer" field.
+If, after considering all information and using tools if necessary, you cannot provide a specific answer to the user's question (e.g., due to lack of information, the question being out of scope, or web search not yielding useful results), your "answer" field should clearly state this. For example: "I'm sorry, I couldn't find the information you're looking for." or "I am unable to answer that question as it is outside my scope."
+Ensure the "answer" field is never empty or null.
 `,
   config: {
     temperature: 0.6, // Slightly lower to be more factual when search is involved
@@ -169,8 +172,8 @@ const careerAdvisorFlow = ai.defineFlow(
     const { output } = await careerAdvisorPrompt(promptInput, { history });
     
     if (!output) {
-        console.error("Career advisor flow received no output from the prompt.");
-        return { answer: "I'm sorry, I encountered an issue and can't provide a response right now." };
+        console.error("Career advisor flow received no output from the prompt. This might be due to safety filters or an inability to generate a response matching the schema.");
+        return { answer: "I'm sorry, I encountered an issue and can't provide a response right now. Please try rephrasing your question or try again later." };
     }
     return output;
   }
@@ -181,3 +184,4 @@ const careerAdvisorFlow = ai.defineFlow(
 //   const response = await careerAdvice({ question: "What are the latest trends in React development?", useWebSearch: true });
 //   console.log(response.answer);
 // }
+
