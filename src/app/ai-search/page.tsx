@@ -12,14 +12,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormDescription as FormDescriptionComponent, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, AlertTriangle, Briefcase, UploadCloud } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, Briefcase, UploadCloud, MapPin, BriefcaseBusiness, Github } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { JobCard } from '@/components/JobCard';
-import type { Job } from '@/types';
-import { mockJobs } from '@/data/mockJobs';
+import type { Job, JobType } from '@/types';
+import { mockJobs, jobTypes as allJobTypes, locations as allLocations } from '@/data/mockJobs';
 import { aiJobSearch, type AiJobSearchOutput } from '@/ai/flows/aiJobSearchFlow';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_FILE_TYPES = [
@@ -27,6 +28,8 @@ const ACCEPTED_FILE_TYPES = [
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "text/plain",
+  "application/rtf",
+  "text/markdown"
 ];
 
 
@@ -41,8 +44,11 @@ const aiSearchFormSchema = z.object({
     )
     .refine(
       (file) => !file || ACCEPTED_FILE_TYPES.includes(file.type),
-      "Invalid file type. Accepted: PDF, DOC, DOCX, TXT."
+      "Invalid file type. Accepted: PDF, DOC, DOCX, TXT, RTF, MD."
     ),
+  location: z.string().optional(),
+  jobType: z.string().optional(),
+  githubUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
 });
 type AiSearchFormValues = z.infer<typeof aiSearchFormSchema>;
 
@@ -70,6 +76,9 @@ export default function AiSearchPage() {
     defaultValues: {
       skills: '',
       resumeFile: undefined,
+      location: '',
+      jobType: '',
+      githubUrl: '',
     },
   });
 
@@ -118,6 +127,9 @@ export default function AiSearchPage() {
         skills: data.skills,
         resumeDataUri: resumeDataUri,
         availableJobs: availableJobs,
+        location: data.location || undefined,
+        jobType: data.jobType ? data.jobType as JobType : undefined,
+        githubUrl: data.githubUrl || undefined,
       });
 
       if (result.recommendations && result.recommendations.length > 0) {
@@ -158,7 +170,7 @@ export default function AiSearchPage() {
             <CardTitle className="text-3xl">AI Powered Job Search</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Tell us about your skills and optionally upload your resume. Our AI will help you find the most relevant jobs.
+            Tell us about your skills, preferences, and optionally upload your resume or GitHub. Our AI will help you find the most relevant jobs.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -177,6 +189,7 @@ export default function AiSearchPage() {
                         {...field}
                       />
                     </FormControl>
+                    <FormDescriptionComponent>Describe your technical and soft skills. Example: React, Next.js, Tailwind CSS, Firebase, UI design</FormDescriptionComponent>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -198,19 +211,91 @@ export default function AiSearchPage() {
                           type="file"
                           accept={ACCEPTED_FILE_TYPES.join(",")}
                           onChange={(e) => onChange(e.target.files?.[0] || undefined)}
-                          className="hidden" // Hidden as we use a custom styled label
+                          className="hidden" 
                           {...restField}
                         />
                         {value && <Button variant="outline" size="sm" onClick={() => onChange(undefined)}>Clear</Button>}
                        </div>
                     </FormControl>
                      <FormDescriptionComponent>
-                      Accepted formats: PDF, DOC, DOCX, TXT. Max 10MB.
+                      Accepted formats: PDF, DOC, DOCX, TXT, RTF, MD. Max 10MB.
                     </FormDescriptionComponent>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="location"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg flex items-center gap-1"><MapPin className="h-4 w-4" />Preferred Location (Optional)</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select preferred location" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {allLocations.map((loc) => (
+                            <SelectItem key={loc} value={loc === 'All Locations' ? '' : loc}>
+                              {loc}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="jobType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg flex items-center gap-1"><BriefcaseBusiness className="h-4 w-4" />Preferred Job Type (Optional)</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select preferred job type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="">Any Type</SelectItem>
+                          {allJobTypes.map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="githubUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg flex items-center gap-1"><Github className="h-4 w-4" />GitHub Profile URL (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="url"
+                        placeholder="e.g., https://github.com/yourusername"
+                        className="text-base"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <Button type="submit" disabled={isLoading} className="w-full sm:w-auto text-lg py-6 px-8">
                 {isLoading ? (
                   <>
