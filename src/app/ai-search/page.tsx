@@ -2,16 +2,17 @@
 'use client';
 
 import type { ChangeEvent} from 'react';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription as FormDescriptionComponent, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Wand2, AlertTriangle, Briefcase } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Loader2, Wand2, AlertTriangle, Briefcase, UploadCloud } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { JobCard } from '@/components/JobCard';
 import type { Job } from '@/types';
@@ -20,15 +21,42 @@ import { aiJobSearch, type AiJobSearchOutput } from '@/ai/flows/aiJobSearchFlow'
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { useToast } from "@/hooks/use-toast";
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ACCEPTED_FILE_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+];
+
+
 const aiSearchFormSchema = z.object({
   skills: z.string().min(10, { message: "Please describe your skills (min 10 characters)." }),
-  resumeText: z.string().min(50, { message: "Please paste your resume text (min 50 characters)." }),
+  resumeFile: z
+    .instanceof(File)
+    .optional()
+    .refine(
+      (file) => !file || file.size <= MAX_FILE_SIZE,
+      `Max file size is 10MB.`
+    )
+    .refine(
+      (file) => !file || ACCEPTED_FILE_TYPES.includes(file.type),
+      "Invalid file type. Accepted: PDF, DOC, DOCX, TXT."
+    ),
 });
 type AiSearchFormValues = z.infer<typeof aiSearchFormSchema>;
 
 interface RecommendedJobDisplay extends Job {
   reason: string;
 }
+
+const fileToDataUri = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 export default function AiSearchPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +69,7 @@ export default function AiSearchPage() {
     resolver: zodResolver(aiSearchFormSchema),
     defaultValues: {
       skills: '',
-      resumeText: '',
+      resumeFile: undefined,
     },
   });
 
@@ -67,16 +95,28 @@ export default function AiSearchPage() {
     setError(null);
     setRecommendedJobsDisplay([]);
 
+    let resumeDataUri: string | undefined = undefined;
+    if (data.resumeFile) {
+      try {
+        resumeDataUri = await fileToDataUri(data.resumeFile);
+      } catch (fileError) {
+        console.error("Error converting resume to data URI:", fileError);
+        setError('Failed to process resume file. Please try a different file or skip.');
+        form.setError("resumeFile", { type: "manual", message: "Could not process file." });
+        setIsLoading(false);
+        return;
+      }
+    }
+
     try {
       const availableJobs = mockJobs.map(job => ({
         ...job,
-        // Ensure all fields match the JobSchema in the flow, especially enums and optionals
         equity: job.equity === undefined ? undefined : Boolean(job.equity), 
       }));
 
       const result: AiJobSearchOutput = await aiJobSearch({
         skills: data.skills,
-        resumeText: data.resumeText,
+        resumeDataUri: resumeDataUri,
         availableJobs: availableJobs,
       });
 
@@ -89,10 +129,10 @@ export default function AiSearchPage() {
           .filter((job): job is RecommendedJobDisplay => job !== null);
         setRecommendedJobsDisplay(detailedRecommendations);
       } else {
-        setRecommendedJobsDisplay([]); // Explicitly set to empty if no recommendations
+        setRecommendedJobsDisplay([]);
         toast({
             title: "No specific matches found",
-            description: "The AI couldn't find specific job matches based on your input. Try refining your skills or resume.",
+            description: "The AI couldn't find specific job matches based on your input. Try refining your skills or browse all jobs.",
             variant: "default",
         });
       }
@@ -118,7 +158,7 @@ export default function AiSearchPage() {
             <CardTitle className="text-3xl">AI Powered Job Search</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Tell us about your skills and paste your resume. Our AI will help you find the most relevant jobs.
+            Tell us about your skills and optionally upload your resume. Our AI will help you find the most relevant jobs.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -143,17 +183,30 @@ export default function AiSearchPage() {
               />
               <FormField
                 control={form.control}
-                name="resumeText"
-                render={({ field }) => (
+                name="resumeFile"
+                render={({ field: { onChange, value, ...restField } }) => (
                   <FormItem>
-                    <FormLabel className="text-lg">Paste Your Resume (Text Only)</FormLabel>
+                    <FormLabel className="text-lg">Upload Your Resume (Optional)</FormLabel>
                     <FormControl>
-                      <Textarea
-                        placeholder="Paste the full text content of your resume here."
-                        className="min-h-[200px] text-base"
-                        {...field}
-                      />
+                      <div className="flex items-center gap-2">
+                        <label htmlFor="resumeFile-input" className="cursor-pointer flex items-center gap-2 px-4 py-2 border border-input rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition-colors">
+                          <UploadCloud className="h-4 w-4" />
+                          {value?.name ? `Selected: ${value.name.substring(0,30)}${value.name.length > 30 ? '...' : ''}` : 'Choose File'}
+                        </label>
+                        <Input
+                          id="resumeFile-input"
+                          type="file"
+                          accept={ACCEPTED_FILE_TYPES.join(",")}
+                          onChange={(e) => onChange(e.target.files?.[0] || undefined)}
+                          className="hidden" // Hidden as we use a custom styled label
+                          {...restField}
+                        />
+                        {value && <Button variant="outline" size="sm" onClick={() => onChange(undefined)}>Clear</Button>}
+                       </div>
                     </FormControl>
+                     <FormDescriptionComponent>
+                      Accepted formats: PDF, DOC, DOCX, TXT. Max 10MB.
+                    </FormDescriptionComponent>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -219,7 +272,7 @@ export default function AiSearchPage() {
            <AlertTriangle className="h-4 w-4" />
            <AlertTitle>No Specific Matches Found</AlertTitle>
            <AlertDescription>
-             Our AI couldn&apos;t find specific job matches based on your input. You might want to try refining your skills or resume text for better results, or browse all jobs.
+             Our AI couldn&apos;t find specific job matches based on your input. You might want to try refining your skills or browse all jobs.
            </AlertDescription>
          </Alert>
        )}
