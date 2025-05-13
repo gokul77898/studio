@@ -9,7 +9,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit/zod';
+import { z } from 'zod';
 import { JobSchema } from '../schemas/jobSchema';
 
 const AiJobSearchInputSchema = z.object({
@@ -98,3 +98,4 @@ const aiJobSearchFlow = ai.defineFlow(
     return { recommendations: validRecommendations };
   }
 );
+
