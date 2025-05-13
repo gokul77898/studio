@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormDescription as FormDescriptionComponent, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, AlertTriangle, Briefcase, UploadCloud, MapPin, BriefcaseBusiness, Github } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, Briefcase, UploadCloud, MapPin, BriefcaseBusiness, Github, Globe, Building, Map, Pin } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { JobCard } from '@/components/JobCard';
 import type { Job, JobType } from '@/types';
@@ -45,7 +45,11 @@ const aiSearchFormSchema = z.object({
       (file) => !file || ACCEPTED_FILE_TYPES.includes(file.type),
       "Invalid file type. Accepted: PDF, DOC, DOCX, TXT, RTF, MD."
     ),
-  location: z.string().optional(),
+  location: z.string().optional(), // General location from dropdown
+  country: z.string().optional(),
+  state: z.string().optional(),
+  city: z.string().optional(),
+  area: z.string().optional(),
   jobType: z.string().optional(),
   githubUrl: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
 });
@@ -76,6 +80,10 @@ export default function AiSearchPage() {
       skills: '',
       resumeFile: undefined,
       location: '',
+      country: '',
+      state: '',
+      city: '',
+      area: '',
       jobType: '',
       githubUrl: '',
     },
@@ -122,11 +130,21 @@ export default function AiSearchPage() {
         equity: job.equity === undefined ? undefined : Boolean(job.equity), 
       }));
 
+      const detailedLocation = {
+        country: data.country || undefined,
+        state: data.state || undefined,
+        city: data.city || undefined,
+        area: data.area || undefined,
+      };
+      
+      const isDetailedLocationProvided = Object.values(detailedLocation).some(val => val !== undefined);
+
       const result: AiJobSearchOutput = await aiJobSearch({
         skills: data.skills,
         resumeDataUri: resumeDataUri,
         availableJobs: availableJobs,
         location: data.location || undefined,
+        detailedLocation: isDetailedLocationProvided ? detailedLocation : undefined,
         jobType: data.jobType ? data.jobType as JobType : undefined,
         githubUrl: data.githubUrl || undefined,
       });
@@ -223,26 +241,32 @@ export default function AiSearchPage() {
                   </FormItem>
                 )}
               />
+              
+              <div className="space-y-2">
+                <p className="text-lg font-medium">Location Preferences (Optional)</p>
+                <FormDescriptionComponent>
+                  You can use the general location dropdown or provide more specific details below.
+                </FormDescriptionComponent>
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
+              <FormField
                   control={form.control}
                   name="location"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-lg flex items-center gap-1"><MapPin className="h-4 w-4" />Preferred Location (Optional)</FormLabel>
+                      <FormLabel className="text-md flex items-center gap-1"><MapPin className="h-4 w-4" />General Preferred Location</FormLabel>
                       <Select 
                         value={field.value === '' ? 'All Locations' : field.value}
                         onValueChange={(selectedValue) => field.onChange(selectedValue === 'All Locations' ? '' : selectedValue)}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select preferred location" />
+                            <SelectValue placeholder="Select general preferred location" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {allLocations.map((loc) => (
-                            <SelectItem key={loc} value={loc}>
+                            <SelectItem key={loc} value={loc === 'All Locations' ? '__all_locations__' : loc}>
                               {loc}
                             </SelectItem>
                           ))}
@@ -252,6 +276,63 @@ export default function AiSearchPage() {
                     </FormItem>
                   )}
                 />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-md flex items-center gap-1"><Globe className="h-4 w-4" />Country</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., USA, United Kingdom" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-md flex items-center gap-1"><Building className="h-4 w-4" />State/Province/Region</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., California, Ontario" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-md flex items-center gap-1"><Map className="h-4 w-4" />City/District</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., San Francisco, London" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="area"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-md flex items-center gap-1"><Pin className="h-4 w-4" />Specific Area/Neighborhood</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., SoMa, Shoreditch" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
                   name="jobType"
@@ -280,26 +361,26 @@ export default function AiSearchPage() {
                     </FormItem>
                   )}
                 />
+                 <FormField
+                  control={form.control}
+                  name="githubUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-lg flex items-center gap-1"><Github className="h-4 w-4" />GitHub Profile URL (Optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="url"
+                          placeholder="e.g., https://github.com/yourusername"
+                          className="text-base"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              <FormField
-                control={form.control}
-                name="githubUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-lg flex items-center gap-1"><Github className="h-4 w-4" />GitHub Profile URL (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="url"
-                        placeholder="e.g., https://github.com/yourusername"
-                        className="text-base"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
               <Button type="submit" disabled={isLoading} className="w-full sm:w-auto text-lg py-6 px-8">
                 {isLoading ? (
@@ -368,3 +449,6 @@ export default function AiSearchPage() {
        )}
     </div>
   );
+
+}
+

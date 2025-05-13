@@ -103,4 +103,7 @@ export const mockJobs: Job[] = [
 ];
 
 export const jobTypes: JobType[] = ['Full-time', 'Part-time', 'Contract', 'Internship'];
+// Ensure "All Locations" has a unique, non-empty value if it's to be used as a SelectItem value.
+// For filtering logic, this special value ("__all_locations__") will be treated as "no location filter".
 export const locations: string[] = ['All Locations', 'New York, NY', 'San Francisco, CA', 'London, UK', 'Austin, TX', 'Remote'];
+

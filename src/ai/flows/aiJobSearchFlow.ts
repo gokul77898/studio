@@ -11,11 +11,19 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { JobSchema, JobTypeSchema } from '../schemas/jobSchema';
 
+const DetailedLocationSchema = z.object({
+  country: z.string().optional().describe("User's preferred country for the job. Optional."),
+  state: z.string().optional().describe("User's preferred state/province/region for the job. Optional."),
+  city: z.string().optional().describe("User's preferred city/district for the job. Optional."),
+  area: z.string().optional().describe("User's preferred specific area or neighborhood. Optional."),
+}).optional();
+
 const AiJobSearchInputSchema = z.object({
   skills: z.string().min(1).describe("A comma-separated list or natural language description of the user's skills."),
   resumeDataUri: z.string().optional().describe("The user's resume as a data URI (e.g., 'data:application/pdf;base64,...') that must include a MIME type and use Base64 encoding. Optional."),
   availableJobs: z.array(JobSchema).describe("A list of available jobs to consider for recommendations."),
-  location: z.string().optional().describe("Preferred job location. Can be 'Remote' or a city/state. Optional."),
+  location: z.string().optional().describe("General preferred job location (e.g., from a dropdown: 'New York, NY', 'Remote'). Optional."),
+  detailedLocation: DetailedLocationSchema.describe("Specific preferred job location details. Optional."),
   jobType: JobTypeSchema.optional().describe("Preferred job type (e.g., Full-time, Part-time). Optional."),
   githubUrl: z.string().url().optional().describe("Link to the user's GitHub profile. Optional."),
 });
@@ -23,7 +31,7 @@ export type AiJobSearchInput = z.infer<typeof AiJobSearchInputSchema>;
 
 const AiJobRecommendationSchema = z.object({
   jobId: z.string().describe("The ID of the recommended job from the provided list."),
-  reason: z.string().describe("A brief explanation (1-2 sentences) why this job is a good fit based on the user's skills, resume (if provided), location, job type, and GitHub profile (if provided)."),
+  reason: z.string().describe("A brief explanation (1-2 sentences) why this job is a good fit based on the user's skills, resume (if provided), location preferences, job type, and GitHub profile (if provided)."),
 });
 
 const AiJobSearchOutputSchema = z.object({
@@ -51,9 +59,24 @@ User's Resume (file uploaded):
 User's Resume: Not provided.
 {{/if}}
 
-{{#if location}}
-Preferred Location: {{{location}}}
+Location Preferences:
+{{#if detailedLocation}}
+  Preferred Detailed Location:
+  {{#if detailedLocation.country}}Country: {{{detailedLocation.country}}}{{/if}}
+  {{#if detailedLocation.state}}State/Region: {{{detailedLocation.state}}}{{/if}}
+  {{#if detailedLocation.city}}City/District: {{{detailedLocation.city}}}{{/if}}
+  {{#if detailedLocation.area}}Specific Area: {{{detailedLocation.area}}}{{/if}}
+  (Prioritize jobs matching these specific details if provided. Also consider the general 'Preferred Location' below if it offers additional context like 'Remote'.)
 {{/if}}
+{{#if location}}
+General Preferred Location (from dropdown): {{{location}}}
+(If 'detailedLocation' is provided, this acts as a secondary preference or for broader context like 'Remote'. If 'detailedLocation' is not provided, use this general location.)
+{{else}}
+{{#unless detailedLocation}}
+Preferred Location: Any (No specific preference provided).
+{{/unless}}
+{{/if}}
+
 
 {{#if jobType}}
 Preferred Job Type: {{{jobType}}}
@@ -76,8 +99,14 @@ Type: {{this.type}}
 ---
 {{/each}}
 
-Based on the user's skills, resume (if available), GitHub profile (if available), preferred location (if specified), and preferred job type (if specified), identify the top 3-5 most relevant jobs from the "Available Jobs" list.
-Prioritize matches based on all provided criteria. For example, if location is specified, highly relevant jobs in that location are preferred. If a GitHub profile is provided, factor in the skills and projects demonstrated there.
+Based on all user inputs (skills, resume, GitHub, job type, and location preferences), identify the top 3-5 most relevant jobs from the "Available Jobs" list.
+Location Matching:
+- If 'detailedLocation' (country, state, city, area) is provided, strive to match jobs as closely as possible to these specifics. A job in the exact city or area is a strong match. A job in the same state/country is a good match.
+- If only the general 'location' (e.g., "New York, NY", "Remote") is provided, use that for matching.
+- If "Remote" is specified in either general or detailed location context, prioritize remote jobs. If detailed location specifies a country/state for remote work, consider that.
+- If a job's location is a general city (e.g., "New York, NY") and the user specifies a detailed area within that city, consider it a match.
+
+Prioritize overall relevance based on skills and experience first, then filter/rank by location and other preferences.
 For each recommended job, you MUST provide its 'jobId' from the "Available Jobs" list and a concise 1-2 sentence 'reason' explaining why it's a strong match for the user considering all their inputs.
 Structure your output strictly according to the defined schema. Only return jobs that are present in the "Available Jobs" list.
 If no jobs are a good fit, return an empty recommendations array.
@@ -101,6 +130,7 @@ const aiJobSearchFlow = ai.defineFlow(
         return { recommendations: [] };
     }
     
+    // Ensure all recommended jobIds exist in the input availableJobs list
     const validRecommendations = output.recommendations.filter(rec => 
         input.availableJobs.some(job => job.id === rec.jobId)
     );
@@ -112,3 +142,4 @@ const aiJobSearchFlow = ai.defineFlow(
     return { recommendations: validRecommendations };
   }
 );
+
