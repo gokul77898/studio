@@ -10,12 +10,63 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
+const performWebSearch = ai.defineTool(
+  {
+    name: 'performWebSearch',
+    description: 'Performs a web search to find real-time information or answers to questions requiring current knowledge. Use this for topics like recent news, current trends, specific up-to-the-minute data, etc., especially if the user has requested web search or if the information is likely not in your training data.',
+    inputSchema: z.object({
+      query: z.string().describe('The search query for the web. Should be specific and targeted to the information needed.'),
+    }),
+    outputSchema: z.object({
+      results: z.array(
+        z.object({
+          title: z.string().describe('The title of the search result.'),
+          snippet: z.string().describe('A brief snippet or summary of the search result content.'),
+          url: z.string().url().optional().describe('The URL of the search result, if available.'),
+        })
+      ).min(1).max(5).describe('A list of 1 to 5 relevant search results.'),
+      summary: z.string().optional().describe('A brief overall summary of the search findings, if applicable, to help answer the user\'s question directly.')
+    }),
+  },
+  async (input) => {
+    console.log(`[WebSearchTool] Simulating web search for: "${input.query}"`);
+    // In a real application, you would integrate with a search API (e.g., Google Search API, Bing API, Serper API, etc.)
+    // For now, we return mock data. This mock tries to be somewhat responsive to the query.
+    let mockResults = [
+      { title: `Simulated Result for: ${input.query}`, snippet: `This is a general simulated search result for your query: "${input.query}". In a real system, live web data would be fetched and processed here.`, url: "https://example.com/mock-search" },
+      { title: `Understanding "${input.query}"`, snippet: "Further details related to your search topic could be found here in a real scenario, providing deeper insights.", url: "https://example.com/mock-search-details" },
+    ];
+    let mockSummary = `Simulated search for "${input.query}" found 2 general results.`;
+
+    if (input.query.toLowerCase().includes("latest news") || input.query.toLowerCase().includes("current trends")) {
+        mockResults = [
+            { title: `Mock News: AI in Job Market Skyrockets (${new Date().getFullYear()})`, snippet: "Recent reports indicate a massive surge in AI-related job openings, transforming the tech landscape.", url: "https://example.com/mock-news/ai-jobs" },
+            { title: `Mock Trend: Remote Work Policies for ${new Date().getFullYear()}`, snippet: `The landscape of remote work continues to evolve with new tools and company policies focusing on hybrid models.`, url: "https://example.com/mock-trends/remote-work" },
+            { title: `Mock Update: Top In-Demand Tech Skills`, snippet: "Skills in cloud computing, cybersecurity, and data science remain highly sought after this year.", url: "https://example.com/mock-updates/tech-skills" }
+        ];
+        mockSummary = "Simulated search indicates the AI job market is booming, remote work trends are evolving towards hybrid, and tech skills in cloud, cyber, and data are key.";
+    } else if (input.query.toLowerCase().includes("stock price for acme corp")) {
+        mockResults = [
+            { title: `ACME Corp (ACME) Stock Price`, snippet: `Simulated: $${(Math.random() * 100 + 50).toFixed(2)} (As of today - mock data)`, url: "https://example.com/mock-stock/acme" }
+        ];
+        mockSummary = `ACME Corp stock is (simulated) $${(Math.random() * 100 + 50).toFixed(2)}.`;
+    }
+
+    return {
+      results: mockResults.slice(0,3), // Return up to 3 mock results
+      summary: mockSummary,
+    };
+  }
+);
+
+
 const CareerAdvisorInputSchema = z.object({
   question: z.string().min(1).describe("The user's question about careers, job searching, skills, coding, etc."),
   chatHistory: z.array(z.object({
     role: z.enum(['user', 'model']),
     parts: z.array(z.object({text: z.string()})),
   })).optional().describe("Previous messages in the conversation, for context."),
+  useWebSearch: z.boolean().optional().describe("Whether the user explicitly requested to use web search for this query."),
 });
 export type CareerAdvisorInput = z.infer<typeof CareerAdvisorInputSchema>;
 
@@ -32,28 +83,35 @@ const careerAdvisorPrompt = ai.definePrompt({
   name: 'careerAdvisorPrompt',
   input: { schema: CareerAdvisorInputSchema },
   output: { schema: CareerAdvisorOutputSchema },
+  tools: [performWebSearch],
   prompt: `You are "Career Compass AI", a friendly, helpful, and knowledgeable career advisor.
 Your primary goal is to provide clear, simple, and encouraging answers to user questions.
 Users might ask about:
-- Job searching strategies (e.g., "How do I find remote jobs?")
-- Application processes (e.g., "What should I include in a cover letter?")
-- Skills development (e.g., "What are good skills for a web developer?", "How can I learn Python?")
-- Coding concepts, languages, and best practices (e.g., "Explain JavaScript closures simply.", "What is version control?")
-- Job market trends (e.g., "Are AI jobs in demand?")
-- Information about companies (general culture, typical interview styles, if widely known. Avoid specifics you can't verify.)
-- Career path guidance (e.g., "I like design and code, what jobs fit?")
+- Job searching strategies
+- Application processes
+- Skills development
+- Coding concepts, languages, and best practices
+- Job market trends
+- Information about companies (general culture, typical interview styles, if widely known)
+- Career path guidance
 
 When responding, always:
 - Be encouraging, positive, and supportive.
-- Explain complex topics in a very simple and easy-to-understand manner, as if explaining to a beginner.
-- Provide actionable advice or concrete examples when possible.
-- If a question is vague, you can ask for clarification, but try to provide a helpful general answer first.
-- If you don't know an answer or a question is outside your scope (e.g., personal financial advice, legal advice, medical advice, highly specific non-public company information), politely state that you cannot answer that specific query and, if appropriate, suggest general resources or types of professionals who might help.
-- Keep your responses concise but informative. Use bullet points or short paragraphs if it helps clarity.
-- Do not make up information.
-- Do not give financial, legal, or medical advice.
-- Maintain a conversational and friendly tone.
-- If the user provides chat history, use it to understand the context of the current question.
+- Explain complex topics in a very simple and easy-to-understand manner.
+- Provide actionable advice or concrete examples.
+- If a question is vague, try to provide a helpful general answer first, then you can ask for clarification.
+- If you don't know an answer or a question is outside your scope (e.g., personal financial/legal/medical advice, highly specific non-public company information), politely state that you cannot answer and suggest general resources if appropriate.
+- Keep responses concise but informative. Use bullet points or short paragraphs for clarity.
+- Do not make up information. Maintain a conversational and friendly tone.
+- If the user provides chat history, use it to understand the context.
+
+Web Search Capability:
+{{#if useWebSearch}}
+The user has explicitly requested to use web search for this query. You MUST prioritize using the 'performWebSearch' tool to gather the most current information to answer the question. Synthesize the search results into your answer.
+{{else}}
+If the user's question seems to require very current, real-time information (e.g., "What are the latest news on X?", "What is the stock price of Y today?"), or specific facts that are likely outside your general training knowledge, you SHOULD use the 'performWebSearch' tool to find relevant information. Clearly indicate if you are using web search results. Otherwise, answer from your existing knowledge.
+{{/if}}
+When using the web search tool, analyze the results and formulate a comprehensive answer. Don't just list the search results.
 
 {{#if chatHistory}}
 Conversation History:
@@ -68,7 +126,7 @@ Current User's Question:
 Your Answer (keep it simple and helpful):
 `,
   config: {
-    temperature: 0.7, // Allow for a bit more creativity in responses
+    temperature: 0.6, // Slightly lower to be more factual when search is involved
      safetySettings: [
       {
         category: 'HARM_CATEGORY_HATE_SPEECH',
@@ -97,13 +155,18 @@ const careerAdvisorFlow = ai.defineFlow(
     outputSchema: CareerAdvisorOutputSchema,
   },
   async (input) => {
-    // Construct prompt history if available
     const history = input.chatHistory?.map(message => ({
         role: message.role,
         parts: message.parts.map(part => ({ text: part.text })),
     }));
 
-    const { output } = await careerAdvisorPrompt(input, { history });
+    const promptInput = {
+      question: input.question,
+      chatHistory: input.chatHistory, // Pass the original chat history structure for Handlebars
+      useWebSearch: input.useWebSearch,
+    };
+    
+    const { output } = await careerAdvisorPrompt(promptInput, { history });
     
     if (!output) {
         console.error("Career advisor flow received no output from the prompt.");
@@ -113,3 +176,8 @@ const careerAdvisorFlow = ai.defineFlow(
   }
 );
 
+// Example of how to call the flow if needed (not for direct export usually for server actions)
+// async function exampleUsage() {
+//   const response = await careerAdvice({ question: "What are the latest trends in React development?", useWebSearch: true });
+//   console.log(response.answer);
+// }

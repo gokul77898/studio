@@ -5,11 +5,15 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Bot, MessageSquarePlus, User, Loader2, AlertTriangle, Send } from 'lucide-react';
+import { Bot, MessageSquarePlus, User, Loader2, AlertTriangle, Send, SearchCheck } from 'lucide-react';
 import { careerAdvice, type CareerAdvisorInput, type CareerAdvisorOutput } from '@/ai/flows/careerAdvisorFlow';
 import { Separator } from './ui/separator';
+import { Checkbox } from './ui/checkbox';
+import { Label } from './ui/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+
 
 interface Message {
   id: string;
@@ -24,6 +28,7 @@ export function Chatbot() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [useWebSearch, setUseWebSearch] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -37,7 +42,7 @@ export function Chatbot() {
         },
       ]);
     }
-  }, [isOpen]);
+  }, [isOpen, messages.length]); // Added messages.length to dependencies
 
  useEffect(() => {
     if (scrollAreaRef.current) {
@@ -69,7 +74,8 @@ export function Chatbot() {
 
       const inputForAI: CareerAdvisorInput = {
         question: userMessage.text,
-        chatHistory: chatHistoryForAI.slice(-6) // Send last 6 messages for context
+        chatHistory: chatHistoryForAI.slice(-10), // Send last 10 messages for context
+        useWebSearch: useWebSearch,
       };
       
       const result: CareerAdvisorOutput = await careerAdvice(inputForAI);
@@ -99,7 +105,7 @@ export function Chatbot() {
   return (
     <>
       <Button
-        variant="primary"
+        variant="default" // Changed to default for better visibility with primary theme color
         size="icon"
         className="fixed bottom-6 right-6 rounded-full h-14 w-14 shadow-xl z-50 bg-primary text-primary-foreground hover:bg-primary/90"
         onClick={() => setIsOpen(true)}
@@ -171,7 +177,7 @@ export function Chatbot() {
             </div>
           </ScrollArea>
           <Separator />
-          <DialogFooter className="p-4 pt-2 border-t">
+          <DialogFooter className="p-4 pt-2 border-t flex-col space-y-2">
             <form onSubmit={handleSubmit} className="flex w-full items-center gap-2">
               <Input
                 type="text"
@@ -186,6 +192,27 @@ export function Chatbot() {
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </form>
+            <div className="flex items-center space-x-2 self-start pl-1">
+              <Checkbox 
+                id="useWebSearch" 
+                checked={useWebSearch} 
+                onCheckedChange={(checked) => setUseWebSearch(Boolean(checked))}
+                disabled={isLoading}
+              />
+              <Label htmlFor="useWebSearch" className="text-xs text-muted-foreground cursor-pointer flex items-center gap-1">
+                <TooltipProvider delayDuration={300}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <SearchCheck className="h-4 w-4 text-primary" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" align="start">
+                      <p className="text-xs max-w-xs">Enable to allow AI to search the web for real-time information for your query.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                 Use Web Search
+              </Label>
+            </div>
           </DialogFooter>
            {error && (
             <div className="p-4 border-t bg-destructive/10 text-destructive text-xs flex items-center gap-2">
