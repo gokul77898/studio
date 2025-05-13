@@ -129,7 +129,7 @@ If, after considering all information and using tools if necessary, you cannot p
 Ensure the "answer" field is never empty or null.
 `,
   config: {
-    temperature: 0.6, // Slightly lower to be more factual when search is involved
+    temperature: 0.6,
      safetySettings: [
       {
         category: 'HARM_CATEGORY_HATE_SPEECH',
@@ -137,7 +137,7 @@ Ensure the "answer" field is never empty or null.
       },
       {
         category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+        threshold: 'BLOCK_ONLY_HIGH', // Relaxed from BLOCK_MEDIUM_AND_ABOVE
       },
       {
         category: 'HARM_CATEGORY_HARASSMENT',
@@ -145,7 +145,7 @@ Ensure the "answer" field is never empty or null.
       },
       {
         category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+        threshold: 'BLOCK_ONLY_HIGH', // Relaxed from BLOCK_MEDIUM_AND_ABOVE
       },
     ],
   },
@@ -165,7 +165,7 @@ const careerAdvisorFlow = ai.defineFlow(
 
     const promptInput = {
       question: input.question,
-      chatHistory: input.chatHistory, // Pass the original chat history structure for Handlebars
+      chatHistory: input.chatHistory, 
       useWebSearch: input.useWebSearch,
     };
     
@@ -178,10 +178,3 @@ const careerAdvisorFlow = ai.defineFlow(
     return output;
   }
 );
-
-// Example of how to call the flow if needed (not for direct export usually for server actions)
-// async function exampleUsage() {
-//   const response = await careerAdvice({ question: "What are the latest trends in React development?", useWebSearch: true });
-//   console.log(response.answer);
-// }
-
