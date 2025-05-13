@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { ChangeEvent} from 'react';
@@ -232,7 +231,10 @@ export default function AiSearchPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-lg flex items-center gap-1"><MapPin className="h-4 w-4" />Preferred Location (Optional)</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select 
+                        value={field.value === '' ? 'All Locations' : field.value}
+                        onValueChange={(selectedValue) => field.onChange(selectedValue === 'All Locations' ? '' : selectedValue)}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select preferred location" />
@@ -240,7 +242,7 @@ export default function AiSearchPage() {
                         </FormControl>
                         <SelectContent>
                           {allLocations.map((loc) => (
-                            <SelectItem key={loc} value={loc === 'All Locations' ? '' : loc}>
+                            <SelectItem key={loc} value={loc}>
                               {loc}
                             </SelectItem>
                           ))}
@@ -256,14 +258,17 @@ export default function AiSearchPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-lg flex items-center gap-1"><BriefcaseBusiness className="h-4 w-4" />Preferred Job Type (Optional)</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select 
+                        value={field.value === '' ? 'Any Type' : field.value}
+                        onValueChange={(selectedValue) => field.onChange(selectedValue === 'Any Type' ? '' : selectedValue)}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select preferred job type" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Any Type</SelectItem>
+                          <SelectItem value="Any Type">Any Type</SelectItem>
                           {allJobTypes.map((type) => (
                             <SelectItem key={type} value={type}>
                               {type}
@@ -363,4 +368,3 @@ export default function AiSearchPage() {
        )}
     </div>
   );
-}
