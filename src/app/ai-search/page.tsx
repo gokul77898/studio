@@ -22,6 +22,7 @@ import { aiJobSearch, type AiJobSearchOutput } from '@/ai/flows/aiJobSearchFlow'
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { isTechJob } from '@/lib/utils'; // Import the tech job filter
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_FILE_TYPES = [
@@ -165,7 +166,7 @@ export default function AiSearchPage() {
 
     try {
       const filterCriteriaForFetch: FilterCriteria = {
-        keyword: data.skills, 
+        keyword: data.skills || 'latest tech jobs', // Ensure tech focus for API fetch
         location: data.location || '', 
         country: data.country,
         state: data.state,
@@ -175,18 +176,21 @@ export default function AiSearchPage() {
       };
       
       toast({
-        title: "Fetching Live Jobs...",
-        description: `Searching for jobs based on: ${data.skills || 'general criteria'}, ${data.location || 'any location'}...`,
+        title: "Fetching Live Tech Jobs...",
+        description: `Searching for tech jobs based on: ${data.skills || 'general criteria'}, ${data.location || 'any location'}...`,
       });
 
-      const fetchedJobs = await fetchRealTimeJobs(filterCriteriaForFetch, CANDIDATE_JOBS_LIMIT);
+      let fetchedJobs = await fetchRealTimeJobs(filterCriteriaForFetch, CANDIDATE_JOBS_LIMIT * 2); // Fetch more to filter
       setIsFetchingJobs(false);
 
+      // Filter for tech jobs before passing to AI
+      const techJobs = fetchedJobs.filter(isTechJob).slice(0, CANDIDATE_JOBS_LIMIT);
 
-      if (fetchedJobs.length === 0) {
+
+      if (techJobs.length === 0) {
         toast({
-            title: "No Jobs Found by API",
-            description: "The initial job fetch returned no results. AI search cannot proceed. Try broader criteria or check API key.",
+            title: "No Tech Jobs Found by API",
+            description: "The initial job fetch returned no results matching tech criteria. AI search cannot proceed. Try broader criteria.",
             variant: "default",
         });
         setIsLoading(false); 
@@ -194,8 +198,8 @@ export default function AiSearchPage() {
       }
       
       toast({
-        title: "Jobs Fetched, AI Analyzing...",
-        description: `Found ${fetchedJobs.length} potential jobs. Now asking AI to find the best matches...`,
+        title: "Tech Jobs Fetched, AI Analyzing...",
+        description: `Found ${techJobs.length} potential tech jobs. Now asking AI to find the best matches...`,
       });
       setIsLoading(true); 
 
@@ -211,7 +215,7 @@ export default function AiSearchPage() {
       const result: AiJobSearchOutput = await aiJobSearch({
         skills: data.skills,
         resumeDataUri: resumeDataUri,
-        availableJobs: fetchedJobs.map(job => ({ 
+        availableJobs: techJobs.map(job => ({ 
             ...job,
             equity: job.equity === undefined ? undefined : Boolean(job.equity),
         })),
@@ -224,20 +228,20 @@ export default function AiSearchPage() {
       if (result.recommendations && result.recommendations.length > 0) {
         const detailedRecommendations: RecommendedJobDisplay[] = result.recommendations
           .map(rec => {
-            const jobDetails = fetchedJobs.find(job => job.id === rec.jobId);
+            const jobDetails = techJobs.find(job => job.id === rec.jobId); // Search within filtered techJobs
             return jobDetails ? { ...jobDetails, reason: rec.reason } : null;
           })
           .filter((job): job is RecommendedJobDisplay => job !== null);
         setRecommendedJobsDisplay(detailedRecommendations);
         toast({
             title: "AI Recommendations Ready!",
-            description: `AI found ${detailedRecommendations.length} relevant jobs for you.`,
+            description: `AI found ${detailedRecommendations.length} relevant tech jobs for you.`,
         });
       } else {
         setRecommendedJobsDisplay([]);
         toast({
-            title: "No Specific Matches Found by AI",
-            description: "The AI couldn't find specific job matches from the fetched jobs. Try broadening your search criteria.",
+            title: "No Specific Tech Matches Found by AI",
+            description: "The AI couldn't find specific tech job matches from the fetched jobs. Try broadening your search criteria.",
             variant: "default",
         });
       }
@@ -262,10 +266,10 @@ export default function AiSearchPage() {
         <CardHeader>
           <div className="flex items-center gap-3 mb-2">
             <Wand2 className="h-8 w-8 text-primary" />
-            <CardTitle className="text-3xl">AI Powered Global Job Search</CardTitle>
+            <CardTitle className="text-3xl">AI Powered Global Tech Job Search</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Describe your skills (e.g., "AI Engineer", "Data Analyst Python SQL", "Content Writer SEO"), preferences, and optionally upload your resume or GitHub. Our AI will first fetch live job listings, then analyze them to find the most relevant global jobs for you.
+            Describe your tech skills (e.g., "AI Engineer", "Data Analyst Python SQL", "Frontend Developer React"), preferences, and optionally upload your resume or GitHub. Our AI will first fetch live tech job listings, then analyze them to find the most relevant global tech jobs for you.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -276,15 +280,15 @@ export default function AiSearchPage() {
                 name="skills"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-lg">Your Skills, Job Title, or Keywords</FormLabel>
+                    <FormLabel className="text-lg">Your Tech Skills, Job Title, or Keywords</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="e.g., AI Engineer, Data Analyst Python SQL, Content Writer SEO, Project Management, UI/UX Design..."
+                        placeholder="e.g., AI Engineer, Python, React, Cloud Architect, Cybersecurity Analyst..."
                         className="min-h-[100px] text-base"
                         {...field}
                       />
                     </FormControl>
-                    <FormDescriptionComponent>This will be used for the initial job fetch and AI analysis. Be specific for better results.</FormDescriptionComponent>
+                    <FormDescriptionComponent>This will be used for the initial job fetch and AI analysis. Be specific for better results in tech domains.</FormDescriptionComponent>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -465,17 +469,17 @@ export default function AiSearchPage() {
                   {isFetchingJobs ? (
                      <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Fetching Live Jobs...
+                      Fetching Live Tech Jobs...
                     </>
                   ) : isLoading ? ( 
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      AI Analyzing Jobs...
+                      AI Analyzing Tech Jobs...
                     </>
                   ) : (
                     <>
                       <Wand2 className="mr-2 h-5 w-5" />
-                      Find My Jobs
+                      Find My Tech Jobs
                     </>
                   )}
                 </Button>
@@ -506,7 +510,7 @@ export default function AiSearchPage() {
       {isFetchingJobs && !isLoading && !error && (
          <div className="flex justify-center items-center py-10">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="ml-3 text-md text-muted-foreground">Fetching live job listings for AI...</p>
+          <p className="ml-3 text-md text-muted-foreground">Fetching live tech job listings for AI...</p>
         </div>
       )}
 
@@ -515,7 +519,7 @@ export default function AiSearchPage() {
         <div>
           <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
             <Briefcase className="h-7 w-7 text-primary" />
-            AI Recommended Jobs ({recommendedJobsDisplay.length})
+            AI Recommended Tech Jobs ({recommendedJobsDisplay.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {recommendedJobsDisplay.map((item) => (
@@ -546,9 +550,9 @@ export default function AiSearchPage() {
        {!isLoading && !isFetchingJobs && !error && form.formState.isSubmitted && recommendedJobsDisplay.length === 0 && (
          <Alert variant="default" className="shadow-md">
            <AlertTriangle className="h-4 w-4" />
-           <AlertTitle>No Specific AI Matches Found</AlertTitle>
+           <AlertTitle>No Specific AI Tech Matches Found</AlertTitle>
            <AlertDescription>
-             Our AI couldn&apos;t find specific job matches from the fetched live listings based on your input. This could be because the initial API job fetch didn&apos;t return suitable candidates for the AI, or the AI couldn&apos;t find a good match. You might want to try refining your skills, adjusting location filters, or browse all jobs on the main page.
+             Our AI couldn&apos;t find specific tech job matches from the fetched live listings based on your input. This could be because the initial API job fetch didn&apos;t return suitable candidates for the AI, or the AI couldn&apos;t find a good match. You might want to try refining your skills, adjusting location filters, or browse all tech jobs on the main page.
            </AlertDescription>
          </Alert>
        )}

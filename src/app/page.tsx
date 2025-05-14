@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
+import { isTechJob } from '@/lib/utils'; // Import the tech job filter
 
 const initialFilters: FilterCriteria = {
   keyword: '',
@@ -33,17 +34,34 @@ export default function HomePage() {
   const [savedJobIds, setSavedJobIds] = useLocalStorage<string[]>('savedJobIds', []);
   const [appliedJobIds, setAppliedJobIds] = useLocalStorage<string[]>('appliedJobIds', []);
   const { toast } = useToast();
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
 
   const loadJobs = useCallback(async (currentFilters: FilterCriteria, showLoadingIndicator: boolean = true) => {
     if (showLoadingIndicator) setIsLoading(true);
     setError(null);
     try {
-      const jobs = await fetchRealTimeJobs(currentFilters, JOBS_PER_PAGE);
+      // Use a more generic keyword for initial load if user hasn't specified one
+      const fetchKeyword = isInitialLoad && !currentFilters.keyword 
+        ? 'latest tech jobs worldwide' 
+        : currentFilters.keyword || 'latest tech jobs worldwide';
+      
+      const jobs = await fetchRealTimeJobs({...currentFilters, keyword: fetchKeyword }, JOBS_PER_PAGE * 2); // Fetch more to allow for client-side tech filtering
       setAllJobs(jobs);
+      setIsInitialLoad(false); // Mark initial load as complete
+
+      const techJobsFound = jobs.filter(isTechJob).length > 0;
+
       if (jobs.length === 0 && (currentFilters.keyword || currentFilters.location || currentFilters.country || currentFilters.city || currentFilters.state || currentFilters.area || currentFilters.jobTypes.length > 0)) {
         toast({
-          title: "No Jobs Found",
-          description: "Your search/filter criteria did not match any live job listings. Try broadening your search or check API key.",
+          title: "No Jobs Found by API",
+          description: "The API did not return any jobs for your criteria. Try broadening your search or check API key.",
+          variant: "default",
+        });
+      } else if (jobs.length > 0 && !techJobsFound) {
+         toast({
+          title: "No Tech Jobs Found",
+          description: "The API returned jobs, but none matched our tech domain criteria. Try different keywords or broader filters.",
           variant: "default",
         });
       }
@@ -53,39 +71,40 @@ export default function HomePage() {
       setError(errorMessage + " Please ensure your JOB_SEARCH_API_KEY is correctly set in the .env file and the API service is reachable. Refer to `src/services/jobSearchService.ts` for setup instructions.");
       toast({
         title: "Error Loading Jobs",
-        description: errorMessage,
+        description: errorMessage.substring(0, 200),
         variant: "destructive",
       });
       setAllJobs([]); 
     } finally {
       if (showLoadingIndicator) setIsLoading(false);
     }
-  }, [toast]);
+  }, [toast, isInitialLoad]);
 
 
   useEffect(() => {
-    // Load initial set of jobs with generic worldwide search
-    loadJobs({keyword: '', location: 'Worldwide', jobTypes: []});
+    loadJobs({keyword: 'latest tech jobs worldwide', location: 'Worldwide', jobTypes: []});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleFilterChange = (newFilters: FilterCriteria) => {
     setFilters(newFilters);
+     setIsInitialLoad(false); // User interaction means it's no longer initial load
   };
 
   const handleApplyFilters = () => {
+    setIsInitialLoad(false); // User interaction
     loadJobs(filters); 
   };
 
   const handleClearFilters = () => {
     setFilters(initialFilters);
     setAllJobs([]); 
+    setIsInitialLoad(true); // Reset to initial load state
     toast({
         title: "Filters Cleared",
-        description: "Search filters have been reset. Click 'Apply Filters & Search' for new results or wait for initial load.",
+        description: "Search filters have been reset. Click 'Apply Filters & Search' for new results or a default tech job search will run.",
     });
-    // Optionally, trigger a default load after clearing
-    // loadJobs({keyword: '', location: 'Worldwide', jobTypes: []});
+    loadJobs({keyword: 'latest tech jobs worldwide', location: 'Worldwide', jobTypes: []});
   };
 
   const handleSaveToggle = (jobId: string) => {
@@ -124,25 +143,27 @@ export default function HomePage() {
       });
     }
   };
+  
+  const techFilteredJobs = useMemo(() => {
+    return allJobs.filter(isTechJob);
+  }, [allJobs]);
 
   // Client-side filtering for refinement on the currently loaded set.
   // Primary filtering is done by the API via `loadJobs`.
   const displayedJobs = useMemo(() => {
-    return allJobs.filter(job => {
+    return techFilteredJobs.filter(job => {
       const jobLocationLower = job.location?.toLowerCase() || '';
       const jobTitleLower = job.title?.toLowerCase() || '';
       const jobCompanyLower = job.company?.toLowerCase() || '';
       const jobDescLower = job.description?.toLowerCase() || '';
       
-      // Keyword filter applies if API didn't filter it or for refining loaded results
       const filterKeywordLower = filters.keyword?.toLowerCase();
-      const keywordMatch = filterKeywordLower
+      const keywordMatch = filterKeywordLower && filterKeywordLower !== 'latest tech jobs worldwide'
         ? jobTitleLower.includes(filterKeywordLower) ||
           jobCompanyLower.includes(filterKeywordLower) ||
           jobDescLower.includes(filterKeywordLower)
         : true;
       
-      // Location filtering primarily relies on API, but this can refine loaded results
       const generalLocationFilter = filters.location?.toLowerCase();
       let locationCombinedMatch = true;
       
@@ -164,11 +185,12 @@ export default function HomePage() {
         : true;
         
       return keywordMatch && locationCombinedMatch && jobTypeMatch;
-    });
-  }, [allJobs, filters]);
+    }).slice(0, JOBS_PER_PAGE);
+  }, [techFilteredJobs, filters]);
 
   const savedJobs = useMemo(() => {
-    return allJobs.filter(job => savedJobIds.includes(job.id));
+    // Filter all fetched jobs (before tech filter) for saved ones, then ensure they are tech jobs
+    return allJobs.filter(job => savedJobIds.includes(job.id) && isTechJob(job));
   }, [allJobs, savedJobIds]);
 
   return (
@@ -184,7 +206,7 @@ export default function HomePage() {
       {isLoading && (
         <div className="flex justify-center items-center py-10">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="ml-4 text-lg text-muted-foreground">Loading real-time job listings...</p>
+          <p className="ml-4 text-lg text-muted-foreground">Loading real-time tech job listings...</p>
         </div>
       )}
 
@@ -199,20 +221,19 @@ export default function HomePage() {
          </Alert>
       )}
 
-      {!isLoading && !error && displayedJobs.length === 0 && form.formState.isSubmitted && (
+      {!isLoading && !error && displayedJobs.length === 0 && !isInitialLoad && (
         <Alert variant="default" className="shadow-md">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>No Jobs Found</AlertTitle>
+          <AlertTitle>No Tech Jobs Found</AlertTitle>
           <AlertDescription>
-            No jobs match your current search/filter criteria. Try adjusting your filters or broadening your search.
+            No tech jobs match your current search/filter criteria from the API results. Try adjusting your filters or broadening your search.
           </AlertDescription>
         </Alert>
       )}
       
-
       {!isLoading && !error && displayedJobs.length > 0 && (
         <div>
-          <h2 className="text-2xl font-semibold mb-6">Job Listings ({displayedJobs.length} matching client filters from {allJobs.length} fetched)</h2>
+          <h2 className="text-2xl font-semibold mb-6">Tech Job Listings ({displayedJobs.length})</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {displayedJobs.map((job) => (
               <JobCard
