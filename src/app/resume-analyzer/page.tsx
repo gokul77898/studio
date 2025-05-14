@@ -19,7 +19,7 @@ import { analyzeResume, type ResumeAnalysisOutput, type ResumeAnalysisInput } fr
 import { generateResume, type GenerateResumeOutput, type GenerateResumeInput } from '@/ai/flows/generateResumeFlow';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
-import { cn } from "@/lib/utils"; // Added import for cn
+import { cn } from "@/lib/utils";
 
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB for resumes
@@ -70,6 +70,7 @@ export default function ResumeAnalyzerPage() {
   const [generatedResumeText, setGeneratedResumeText] = useState<string | null>(null);
   const [generatedResumeAnalysisResult, setGeneratedResumeAnalysisResult] = useState<ResumeAnalysisOutput | null>(null);
   const [originalResumeDataUri, setOriginalResumeDataUri] = useState<string | null>(null);
+  const [originalFileType, setOriginalFileType] = useState<string | null>(null); // Store original file type
   const { toast } = useToast();
 
   const form = useForm<ResumeAnalyzerFormValues>({
@@ -87,11 +88,13 @@ export default function ResumeAnalyzerPage() {
     setGeneratedResumeText(null);
     setGeneratedResumeAnalysisResult(null);
     setOriginalResumeDataUri(null);
+    setOriginalFileType(null); // Reset original file type
 
     let resumeDataUriForAnalysis: string;
     try {
       resumeDataUriForAnalysis = await fileToDataUri(data.resumeFile);
       setOriginalResumeDataUri(resumeDataUriForAnalysis);
+      setOriginalFileType(data.resumeFile.type); // Store the type of the uploaded file
     } catch (fileError) {
       console.error("Error converting resume to data URI:", fileError);
       setError('Failed to process resume file. Please try a different file.');
@@ -306,16 +309,18 @@ export default function ResumeAnalyzerPage() {
                           type="file"
                           accept={ACCEPTED_FILE_TYPES.join(",")}
                           onChange={(e) => {
-                            onChange(e.target.files?.[0]);
+                            const file = e.target.files?.[0];
+                            onChange(file);
                             setAnalysisResult(null); 
                             setGeneratedResumeText(null);
                             setGeneratedResumeAnalysisResult(null);
                             setOriginalResumeDataUri(null);
+                            setOriginalFileType(file?.type || null); // Update file type on change
                           }}
                           className="hidden"
                           {...restField}
                         />
-                         {value && <Button variant="outline" size="sm" onClick={() => { form.setValue('resumeFile', undefined as any); form.clearErrors('resumeFile'); setAnalysisResult(null); setGeneratedResumeText(null); setGeneratedResumeAnalysisResult(null); setOriginalResumeDataUri(null); }}>Clear</Button>}
+                         {value && <Button variant="outline" size="sm" onClick={() => { form.setValue('resumeFile', undefined as any); form.clearErrors('resumeFile'); setAnalysisResult(null); setGeneratedResumeText(null); setGeneratedResumeAnalysisResult(null); setOriginalResumeDataUri(null); setOriginalFileType(null); }}>Clear</Button>}
                        </div>
                     </FormControl>
                     <FormDescriptionComponent>
@@ -421,7 +426,9 @@ export default function ResumeAnalyzerPage() {
               <CardDescription className="flex items-start gap-2">
                 <Info className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
                 <span>
-                  The AI has generated the resume content below in Markdown format. Copy this text and paste it into your preferred document editor (e.g., Google Docs, Microsoft Word) to apply your desired styling, fonts, and layout.
+                  The AI has generated the resume content below in Markdown format. Copy this text and paste it into your preferred document editor (e.g., Google Docs, Microsoft Word).
+                  {originalFileType === 'application/pdf' && " Since your original resume was a PDF, you will need to re-apply your specific visual styling, fonts, and layout in your PDF editor or a new document."}
+                  {originalFileType !== 'application/pdf' && " You can then apply your desired styling, fonts, and layout."}
                 </span>
               </CardDescription>
           </CardHeader>
