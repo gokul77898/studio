@@ -10,7 +10,7 @@ export function Header() {
           <Briefcase className="h-7 w-7" />
           <h1 className="text-2xl font-semibold">Career Compass</h1>
         </Link>
-        <nav className="flex items-center gap-2 md:gap-4 text-xs sm:text-sm">
+        <nav className="flex items-center gap-3 md:gap-5 text-xs sm:text-sm">
           <Link href="/" className="font-medium text-foreground hover:text-primary transition-colors">
             Jobs
           </Link>

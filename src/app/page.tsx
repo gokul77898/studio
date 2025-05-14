@@ -2,17 +2,17 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Job, FilterCriteria } from '@/types';
+import type { Job, FilterCriteria, ApplicationStatus, TrackedApplication } from '@/types';
 import { fetchRealTimeJobs } from '@/services/jobSearchService';
 import { JobCard } from '@/components/JobCard';
 import { JobFilters } from '@/components/JobFilters';
-import { SavedJobsSection } from '@/components/SavedJobsSection';
+import { SavedJobsSection as TrackedJobsSection } from '@/components/SavedJobsSection'; // Renamed for clarity
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, Search } from 'lucide-react'; // Added Search icon
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
-import { isTechJob } from '@/lib/utils'; // Import the tech job filter
+import { isTechJob } from '@/lib/utils';
 
 const initialFilters: FilterCriteria = {
   keyword: '',
@@ -31,8 +31,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterCriteria>(initialFilters);
-  const [savedJobIds, setSavedJobIds] = useLocalStorage<string[]>('savedJobIds', []);
-  const [appliedJobIds, setAppliedJobIds] = useLocalStorage<string[]>('appliedJobIds', []);
+  const [trackedApplications, setTrackedApplications] = useLocalStorage<Record<string, TrackedApplication>>('trackedApplications', {});
   const { toast } = useToast();
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
@@ -41,27 +40,33 @@ export default function HomePage() {
     if (showLoadingIndicator) setIsLoading(true);
     setError(null);
     try {
-      // Use a more generic keyword for initial load if user hasn't specified one
       const fetchKeyword = isInitialLoad && !currentFilters.keyword 
         ? 'latest tech jobs worldwide' 
-        : currentFilters.keyword || 'latest tech jobs worldwide';
+        : currentFilters.keyword || 'latest tech jobs worldwide'; // Ensure tech focus unless user specifies
       
-      const jobs = await fetchRealTimeJobs({...currentFilters, keyword: fetchKeyword }, JOBS_PER_PAGE * 2); // Fetch more to allow for client-side tech filtering
-      setAllJobs(jobs);
-      setIsInitialLoad(false); // Mark initial load as complete
+      const jobsFromApi = await fetchRealTimeJobs({...currentFilters, keyword: fetchKeyword }, JOBS_PER_PAGE * 2); // Fetch more for filtering
+      
+      // Add status to jobs from API based on trackedApplications
+      const jobsWithStatus = jobsFromApi.map(job => ({
+        ...job,
+        status: trackedApplications[job.id]?.status || 'None',
+      }));
+      setAllJobs(jobsWithStatus);
 
-      const techJobsFound = jobs.filter(isTechJob).length > 0;
+      setIsInitialLoad(false); 
 
-      if (jobs.length === 0 && (currentFilters.keyword || currentFilters.location || currentFilters.country || currentFilters.city || currentFilters.state || currentFilters.area || currentFilters.jobTypes.length > 0)) {
+      const techJobsFound = jobsWithStatus.filter(isTechJob).length > 0;
+
+      if (jobsFromApi.length === 0 && (currentFilters.keyword || currentFilters.location || currentFilters.country || currentFilters.city || currentFilters.state || currentFilters.area || currentFilters.jobTypes.length > 0)) {
         toast({
           title: "No Jobs Found by API",
           description: "The API did not return any jobs for your criteria. Try broadening your search or check API key.",
           variant: "default",
         });
-      } else if (jobs.length > 0 && !techJobsFound) {
+      } else if (jobsFromApi.length > 0 && !techJobsFound) {
          toast({
-          title: "No Tech Jobs Found",
-          description: "The API returned jobs, but none matched our tech domain criteria. Try different keywords or broader filters.",
+          title: "No Focused Tech Jobs Found",
+          description: "The API returned jobs, but none matched focused tech criteria (Software/FS/AI/ML). Try different keywords or broader filters.",
           variant: "default",
         });
       }
@@ -78,28 +83,29 @@ export default function HomePage() {
     } finally {
       if (showLoadingIndicator) setIsLoading(false);
     }
-  }, [toast, isInitialLoad]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast, isInitialLoad, trackedApplications]); // Added trackedApplications dependency
 
 
   useEffect(() => {
     loadJobs({keyword: 'latest tech jobs worldwide', location: 'Worldwide', jobTypes: []});
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // Initial load only
 
   const handleFilterChange = (newFilters: FilterCriteria) => {
     setFilters(newFilters);
-     setIsInitialLoad(false); // User interaction means it's no longer initial load
+    setIsInitialLoad(false); 
   };
 
   const handleApplyFilters = () => {
-    setIsInitialLoad(false); // User interaction
+    setIsInitialLoad(false); 
     loadJobs(filters); 
   };
 
   const handleClearFilters = () => {
     setFilters(initialFilters);
     setAllJobs([]); 
-    setIsInitialLoad(true); // Reset to initial load state
+    setIsInitialLoad(true); 
     toast({
         title: "Filters Cleared",
         description: "Search filters have been reset. Click 'Apply Filters & Search' for new results or a default tech job search will run.",
@@ -107,49 +113,30 @@ export default function HomePage() {
     loadJobs({keyword: 'latest tech jobs worldwide', location: 'Worldwide', jobTypes: []});
   };
 
-  const handleSaveToggle = (jobId: string) => {
-    const isCurrentlySaved = savedJobIds.includes(jobId);
-    if (isCurrentlySaved) {
-      setSavedJobIds(savedJobIds.filter(id => id !== jobId));
-      toast({
-        title: "Job Unsaved",
-        description: "The job has been removed from your saved list.",
-      });
-    } else {
-      setSavedJobIds([...savedJobIds, jobId]);
-      toast({
-        title: "Job Saved!",
-        description: "The job has been added to your saved list.",
-        variant: "default",
-      });
-    }
-  };
-
-  const handleToggleAppliedStatus = (jobId: string) => {
-    const isCurrentlyApplied = appliedJobIds.includes(jobId);
-    if (isCurrentlyApplied) {
-      setAppliedJobIds(appliedJobIds.filter(id => id !== jobId));
-      toast({
-        title: "Marked as Not Applied",
-        description: "The job's application status has been updated.",
-      });
-    } else {
-      setAppliedJobIds([...appliedJobIds, jobId]);
-      toast({
-        title: "Marked as Applied!",
-        description: "Great job! This job is now marked as applied.",
-        variant: "default",
-        icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
-      });
-    }
+ const handleStatusChange = (jobId: string, status: ApplicationStatus) => {
+    setTrackedApplications(prev => {
+      const newTracked = { ...prev };
+      if (status === 'None') {
+        delete newTracked[jobId];
+        toast({ title: "Job Untracked", description: "This job is no longer tracked." });
+      } else {
+        newTracked[jobId] = { status, dateTracked: new Date().toISOString() };
+        toast({
+          title: `Job status updated to: ${status}`,
+          variant: "default",
+          icon: status === 'Applied' ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : undefined,
+        });
+      }
+      return newTracked;
+    });
+     // Update the status on the job in the allJobs array immediately for UI responsiveness
+    setAllJobs(prevJobs => prevJobs.map(j => j.id === jobId ? { ...j, status } : j));
   };
   
   const techFilteredJobs = useMemo(() => {
     return allJobs.filter(isTechJob);
   }, [allJobs]);
 
-  // Client-side filtering for refinement on the currently loaded set.
-  // Primary filtering is done by the API via `loadJobs`.
   const displayedJobs = useMemo(() => {
     return techFilteredJobs.filter(job => {
       const jobLocationLower = job.location?.toLowerCase() || '';
@@ -188,10 +175,16 @@ export default function HomePage() {
     }).slice(0, JOBS_PER_PAGE);
   }, [techFilteredJobs, filters]);
 
-  const savedJobs = useMemo(() => {
-    // Filter all fetched jobs (before tech filter) for saved ones, then ensure they are tech jobs
-    return allJobs.filter(job => savedJobIds.includes(job.id) && isTechJob(job));
-  }, [allJobs, savedJobIds]);
+  const trackedJobsToDisplay = useMemo(() => {
+    return Object.entries(trackedApplications)
+      .map(([jobId, trackedApp]) => {
+        const jobDetail = allJobs.find(j => j.id === jobId);
+        return jobDetail ? { ...jobDetail, status: trackedApp.status, dateTracked: trackedApp.dateTracked } : null;
+      })
+      .filter((job): job is Job & { dateTracked: string } => job !== null && isTechJob(job))
+      .sort((a, b) => new Date(b.dateTracked).getTime() - new Date(a.dateTracked).getTime());
+  }, [allJobs, trackedApplications]);
+
 
   return (
     <div className="space-y-8">
@@ -224,36 +217,31 @@ export default function HomePage() {
       {!isLoading && !error && displayedJobs.length === 0 && !isInitialLoad && (
         <Alert variant="default" className="shadow-md">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>No Tech Jobs Found</AlertTitle>
+          <AlertTitle>No Focused Tech Jobs Found</AlertTitle>
           <AlertDescription>
-            No tech jobs match your current search/filter criteria from the API results. Try adjusting your filters or broadening your search.
+            No tech jobs (Software/FS/AI/ML) match your current search/filter criteria from the API results. Try adjusting your filters or broadening your search.
           </AlertDescription>
         </Alert>
       )}
       
       {!isLoading && !error && displayedJobs.length > 0 && (
         <div>
-          <h2 className="text-2xl font-semibold mb-6">Tech Job Listings ({displayedJobs.length})</h2>
+          <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2"><Search className="h-6 w-6 text-primary" /> Tech Job Listings ({displayedJobs.length})</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {displayedJobs.map((job) => (
               <JobCard
                 key={job.id}
                 job={job}
-                isSaved={savedJobIds.includes(job.id)}
-                onSaveToggle={handleSaveToggle}
-                isApplied={appliedJobIds.includes(job.id)}
-                onToggleApplied={handleToggleAppliedStatus}
+                onStatusChange={handleStatusChange}
               />
             ))}
           </div>
         </div>
       )}
 
-      <SavedJobsSection 
-        savedJobs={savedJobs} 
-        onSaveToggle={handleSaveToggle} 
-        appliedJobIds={appliedJobIds} 
-        onToggleApplied={handleToggleAppliedStatus} 
+      <TrackedJobsSection 
+        trackedJobs={trackedJobsToDisplay}
+        onStatusChange={handleStatusChange}
       />
     </div>
   );

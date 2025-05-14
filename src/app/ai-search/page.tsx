@@ -2,7 +2,7 @@
 'use client';
 
 import type { ChangeEvent} from 'react';
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react'; // Added useCallback, useMemo
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -12,17 +12,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormDescription as FormDescriptionComponent, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, AlertTriangle, Briefcase, UploadCloud, MapPin, BriefcaseBusiness, Github, Globe, Building, Map, Pin, XCircle, CheckCircle2 } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, Briefcase, UploadCloud, MapPin, BriefcaseBusiness, Github, Globe, Building, Map, Pin, XCircle, CheckCircle2, Search } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { JobCard } from '@/components/JobCard';
-import type { Job, JobType, FilterCriteria } from '@/types';
+import type { Job, JobType, FilterCriteria, TrackedApplication, ApplicationStatus } from '@/types';
 import { jobTypes as allJobTypes, locations as allLocations } from '@/data/mockJobs';
 import { fetchRealTimeJobs } from '@/services/jobSearchService';
 import { aiJobSearch, type AiJobSearchOutput } from '@/ai/flows/aiJobSearchFlow';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { isTechJob } from '@/lib/utils'; // Import the tech job filter
+import { isTechJob } from '@/lib/utils'; 
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ACCEPTED_FILE_TYPES = [
@@ -48,7 +48,7 @@ const aiSearchFormSchema = z.object({
       (file) => !file || ACCEPTED_FILE_TYPES.includes(file.type),
       "Invalid file type. Accepted: PDF, DOC, DOCX, TXT, RTF, MD."
     ),
-  location: z.string().optional(), // General location from dropdown
+  location: z.string().optional(), 
   country: z.string().optional(),
   state: z.string().optional(),
   city: z.string().optional(),
@@ -85,12 +85,11 @@ const defaultFormValues: AiSearchFormValues = {
 const CANDIDATE_JOBS_LIMIT = 50; 
 
 export default function AiSearchPage() {
-  const [isLoading, setIsLoading] = useState(false); // AI analysis phase
-  const [isFetchingJobs, setIsFetchingJobs] = useState(false); // Job fetching phase
+  const [isLoading, setIsLoading] = useState(false); 
+  const [isFetchingJobs, setIsFetchingJobs] = useState(false); 
   const [error, setError] = useState<string | null>(null);
   const [recommendedJobsDisplay, setRecommendedJobsDisplay] = useState<RecommendedJobDisplay[]>([]);
-  const [savedJobIds, setSavedJobIds] = useLocalStorage<string[]>('savedJobIds', []);
-  const [appliedJobIds, setAppliedJobIds] = useLocalStorage<string[]>('appliedJobIds', []);
+  const [trackedApplications, setTrackedApplications] = useLocalStorage<Record<string, TrackedApplication>>('trackedApplications', {});
   const { toast } = useToast();
 
   const form = useForm<AiSearchFormValues>({
@@ -98,41 +97,28 @@ export default function AiSearchPage() {
     defaultValues: defaultFormValues,
   });
 
-  const handleSaveToggle = (jobId: string) => {
-    const isCurrentlySaved = savedJobIds.includes(jobId);
-    if (isCurrentlySaved) {
-      setSavedJobIds(savedJobIds.filter(id => id !== jobId));
-      toast({
-        title: "Job Unsaved",
-        description: "The job has been removed from your saved list.",
-      });
-    } else {
-      setSavedJobIds([...savedJobIds, jobId]);
-      toast({
-        title: "Job Saved!",
-        description: "The job has been added to your saved list.",
-      });
-    }
-  };
-
-  const handleToggleAppliedStatus = (jobId: string) => {
-    const isCurrentlyApplied = appliedJobIds.includes(jobId);
-    if (isCurrentlyApplied) {
-      setAppliedJobIds(appliedJobIds.filter(id => id !== jobId));
-      toast({
-        title: "Marked as Not Applied",
-        description: "The job's application status has been updated.",
-      });
-    } else {
-      setAppliedJobIds([...appliedJobIds, jobId]);
-      toast({
-        title: "Marked as Applied!",
-        description: "Great job! This job is now marked as applied.",
-        variant: "default",
-        icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
-      });
-    }
-  };
+  const handleStatusChange = useCallback((jobId: string, status: ApplicationStatus) => {
+    setTrackedApplications(prev => {
+      const newTracked = { ...prev };
+      if (status === 'None') {
+        delete newTracked[jobId];
+        toast({ title: "Job Untracked", description: "This job is no longer tracked." });
+      } else {
+        newTracked[jobId] = { status, dateTracked: new Date().toISOString() };
+        toast({
+          title: `Job status updated to: ${status}`,
+          variant: "default",
+          icon: status === 'Applied' ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : undefined,
+        });
+      }
+      return newTracked;
+    });
+     // Update status in recommendedJobsDisplay if the job is there
+    setRecommendedJobsDisplay(prevRecs => prevRecs.map(job => 
+        job.id === jobId ? { ...job, status } : job
+    ));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]); // trackedApplications is managed by useLocalStorage, no need to list as dep
 
   const handleClearFilters = () => {
     form.reset(defaultFormValues);
@@ -166,7 +152,7 @@ export default function AiSearchPage() {
 
     try {
       const filterCriteriaForFetch: FilterCriteria = {
-        keyword: data.skills || 'latest tech jobs', // Ensure tech focus for API fetch
+        keyword: data.skills || 'latest tech jobs', 
         location: data.location || '', 
         country: data.country,
         state: data.state,
@@ -180,17 +166,16 @@ export default function AiSearchPage() {
         description: `Searching for tech jobs based on: ${data.skills || 'general criteria'}, ${data.location || 'any location'}...`,
       });
 
-      let fetchedJobs = await fetchRealTimeJobs(filterCriteriaForFetch, CANDIDATE_JOBS_LIMIT * 2); // Fetch more to filter
+      let fetchedJobsFromApi = await fetchRealTimeJobs(filterCriteriaForFetch, CANDIDATE_JOBS_LIMIT * 2); 
       setIsFetchingJobs(false);
 
-      // Filter for tech jobs before passing to AI
-      const techJobs = fetchedJobs.filter(isTechJob).slice(0, CANDIDATE_JOBS_LIMIT);
+      const techJobsForAI = fetchedJobsFromApi.filter(isTechJob).slice(0, CANDIDATE_JOBS_LIMIT);
 
 
-      if (techJobs.length === 0) {
+      if (techJobsForAI.length === 0) {
         toast({
             title: "No Tech Jobs Found by API",
-            description: "The initial job fetch returned no results matching tech criteria. AI search cannot proceed. Try broader criteria.",
+            description: "The initial job fetch returned no results matching tech criteria (Software/FS/AI/ML). AI search cannot proceed. Try broader criteria.",
             variant: "default",
         });
         setIsLoading(false); 
@@ -199,7 +184,7 @@ export default function AiSearchPage() {
       
       toast({
         title: "Tech Jobs Fetched, AI Analyzing...",
-        description: `Found ${techJobs.length} potential tech jobs. Now asking AI to find the best matches...`,
+        description: `Found ${techJobsForAI.length} potential tech jobs. Now asking AI to find the best matches...`,
       });
       setIsLoading(true); 
 
@@ -215,8 +200,9 @@ export default function AiSearchPage() {
       const result: AiJobSearchOutput = await aiJobSearch({
         skills: data.skills,
         resumeDataUri: resumeDataUri,
-        availableJobs: techJobs.map(job => ({ 
+        availableJobs: techJobsForAI.map(job => ({ 
             ...job,
+            status: trackedApplications[job.id]?.status || 'None', // Add status for AI context
             equity: job.equity === undefined ? undefined : Boolean(job.equity),
         })),
         location: data.location || undefined,
@@ -228,8 +214,8 @@ export default function AiSearchPage() {
       if (result.recommendations && result.recommendations.length > 0) {
         const detailedRecommendations: RecommendedJobDisplay[] = result.recommendations
           .map(rec => {
-            const jobDetails = techJobs.find(job => job.id === rec.jobId); // Search within filtered techJobs
-            return jobDetails ? { ...jobDetails, reason: rec.reason } : null;
+            const jobDetails = techJobsForAI.find(job => job.id === rec.jobId); 
+            return jobDetails ? { ...jobDetails, status: trackedApplications[jobDetails.id]?.status || 'None', reason: rec.reason } : null;
           })
           .filter((job): job is RecommendedJobDisplay => job !== null);
         setRecommendedJobsDisplay(detailedRecommendations);
@@ -259,6 +245,13 @@ export default function AiSearchPage() {
       setIsFetchingJobs(false); 
     }
   };
+  
+  const currentRecommendedJobs = useMemo(() => {
+    return recommendedJobsDisplay.map(job => ({
+      ...job,
+      status: trackedApplications[job.id]?.status || 'None',
+    }));
+  }, [recommendedJobsDisplay, trackedApplications]);
 
   return (
     <div className="space-y-8">
@@ -269,7 +262,7 @@ export default function AiSearchPage() {
             <CardTitle className="text-3xl">AI Powered Global Tech Job Search</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Describe your tech skills (e.g., "AI Engineer", "Data Analyst Python SQL", "Frontend Developer React"), preferences, and optionally upload your resume or GitHub. Our AI will first fetch live tech job listings, then analyze them to find the most relevant global tech jobs for you.
+            Describe your tech skills (e.g., "AI Engineer", "Data Analyst Python SQL", "Frontend Developer React"), preferences, and optionally upload your resume or GitHub. Our AI will first fetch live tech job listings (Software/FS/AI/ML focus), then analyze them to find the most relevant global tech jobs for you.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -288,7 +281,7 @@ export default function AiSearchPage() {
                         {...field}
                       />
                     </FormControl>
-                    <FormDescriptionComponent>This will be used for the initial job fetch and AI analysis. Be specific for better results in tech domains.</FormDescriptionComponent>
+                    <FormDescriptionComponent>This will be used for the initial job fetch and AI analysis. Be specific for better results in tech domains (Software/FS/AI/ML).</FormDescriptionComponent>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -515,21 +508,18 @@ export default function AiSearchPage() {
       )}
 
 
-      {!isLoading && !isFetchingJobs && recommendedJobsDisplay.length > 0 && (
+      {!isLoading && !isFetchingJobs && currentRecommendedJobs.length > 0 && (
         <div>
           <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
-            <Briefcase className="h-7 w-7 text-primary" />
-            AI Recommended Tech Jobs ({recommendedJobsDisplay.length})
+            <Search className="h-7 w-7 text-primary" /> {/* Changed icon to Search */}
+            AI Recommended Tech Jobs ({currentRecommendedJobs.length})
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {recommendedJobsDisplay.map((item) => (
+            {currentRecommendedJobs.map((item) => (
               <div key={item.id} className="flex flex-col gap-2">
                 <JobCard
                   job={item}
-                  isSaved={savedJobIds.includes(item.id)}
-                  onSaveToggle={handleSaveToggle}
-                  isApplied={appliedJobIds.includes(item.id)}
-                  onToggleApplied={handleToggleAppliedStatus}
+                  onStatusChange={handleStatusChange}
                 />
                 <Card className="bg-accent/10 border-accent/30 shadow">
                   <CardHeader className='pb-2 pt-4'>
@@ -547,12 +537,12 @@ export default function AiSearchPage() {
           </div>
         </div>
       )}
-       {!isLoading && !isFetchingJobs && !error && form.formState.isSubmitted && recommendedJobsDisplay.length === 0 && (
+       {!isLoading && !isFetchingJobs && !error && form.formState.isSubmitted && currentRecommendedJobs.length === 0 && (
          <Alert variant="default" className="shadow-md">
            <AlertTriangle className="h-4 w-4" />
            <AlertTitle>No Specific AI Tech Matches Found</AlertTitle>
            <AlertDescription>
-             Our AI couldn&apos;t find specific tech job matches from the fetched live listings based on your input. This could be because the initial API job fetch didn&apos;t return suitable candidates for the AI, or the AI couldn&apos;t find a good match. You might want to try refining your skills, adjusting location filters, or browse all tech jobs on the main page.
+             Our AI couldn&apos;t find specific tech job matches (Software/FS/AI/ML) from the fetched live listings based on your input. This could be because the initial API job fetch didn&apos;t return suitable candidates for the AI, or the AI couldn&apos;t find a good match. You might want to try refining your skills, adjusting location filters, or browse all tech jobs on the main page.
            </AlertDescription>
          </Alert>
        )}

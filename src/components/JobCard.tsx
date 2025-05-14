@@ -1,22 +1,21 @@
 
 'use client';
 
-import type { Job } from '@/types';
+import type { Job, ApplicationStatus } from '@/types'; // Added ApplicationStatus
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Building2, MapPin, CalendarDays, ExternalLink, Bookmark, BookmarkCheck, DollarSign, BarChartBig, CheckCircle2, FilePenLine } from 'lucide-react'; // Added CheckCircle2, FilePenLine
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Building2, MapPin, CalendarDays, ExternalLink, MoreVertical, XCircle } from 'lucide-react'; // Replaced Bookmark icons with MoreVertical
 import { format, parseISO, formatDistanceToNowStrict } from 'date-fns';
+import { cn } from '@/lib/utils'; // Added cn import
 
 interface JobCardProps {
   job: Job;
-  isSaved: boolean;
-  onSaveToggle: (jobId: string) => void;
-  isApplied: boolean;
-  onToggleApplied: (jobId: string) => void;
+  onStatusChange: (jobId: string, status: ApplicationStatus) => void;
 }
 
-export function JobCard({ job, isSaved, onSaveToggle, isApplied, onToggleApplied }: JobCardProps) {
+export function JobCard({ job, onStatusChange }: JobCardProps) {
   const postedDate = parseISO(job.postedDate);
   const timeAgo = formatDistanceToNowStrict(postedDate, { addSuffix: true });
 
@@ -25,11 +24,7 @@ export function JobCard({ job, isSaved, onSaveToggle, isApplied, onToggleApplied
       <CardHeader>
         <div className="flex justify-between items-start">
           <CardTitle className="text-xl font-semibold text-primary">{job.title}</CardTitle>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => onSaveToggle(job.id)} aria-label={isSaved ? 'Unsave job' : 'Save job'}>
-              {isSaved ? <BookmarkCheck className="h-5 w-5 text-accent" /> : <Bookmark className="h-5 w-5 text-muted-foreground hover:text-primary" />}
-            </Button>
-          </div>
+          {/* Options dropdown is now in the footer */}
         </div>
         <CardDescription className="text-sm">
           <div className="flex items-center gap-2 mt-1 text-muted-foreground">
@@ -51,37 +46,71 @@ export function JobCard({ job, isSaved, onSaveToggle, isApplied, onToggleApplied
                <span>{job.salary}</span>
             </div>
           )}
-          {job.equity !== undefined && (
+          {job.equity !== undefined && ( // Using BarChartBig as a placeholder for equity
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <BarChartBig className="h-4 w-4 text-accent" />
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-pie-chart h-4 w-4 text-accent"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
               <span>Equity: {job.equity ? 'Yes' : 'No'}</span>
             </div>
           )}
         </div>
       </CardContent>
-      <CardFooter className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-4 border-t">
-        <div className="text-xs text-muted-foreground space-y-1">
-          <div className="flex items-center gap-1">
+      <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-4 border-t">
+        {/* Left Part: Date & Status/Type Badge */}
+        <div className="flex flex-col items-start sm:flex-row sm:items-center gap-x-3 gap-y-1 text-xs text-muted-foreground w-full sm:w-auto">
+          <div className="flex items-center gap-1 whitespace-nowrap">
             <CalendarDays className="h-3.5 w-3.5" />
-            Posted: {timeAgo} ({format(postedDate, 'MMM d, yyyy')})
+            <span>Posted: {timeAgo} ({format(postedDate, 'MMM d, yyyy')})</span>
           </div>
-          <Badge variant="secondary" className="mt-1 capitalize">{job.type}</Badge>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center w-full sm:w-auto">
-          <Button 
-            variant={isApplied ? "secondary" : "outline"} 
-            size="sm" 
-            onClick={() => onToggleApplied(job.id)}
-            className="w-full sm:w-auto"
-            aria-label={isApplied ? "Mark as not applied" : "Mark as applied"}
+          <Badge
+            variant={
+              job.status === 'Applied' ? 'default' :
+              job.status === 'Rejected' ? 'destructive' :
+              'secondary' // Base for Saved, None (job.type), Offer, Interviewing
+            }
+            className={cn("capitalize text-xs px-1.5 py-0.5 h-auto", {
+              'bg-green-500 border-green-500 text-white hover:bg-green-600': job.status === 'Offer',
+              'bg-yellow-500 border-yellow-500 text-black hover:bg-yellow-600': job.status === 'Interviewing', // yellow often needs black text
+            })}
           >
-            {isApplied ? <CheckCircle2 className="text-green-500" /> : <FilePenLine />}
-            {isApplied ? 'Applied' : 'Mark Applied'}
-          </Button>
-          <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto">
-            <a href={job.url} target="_blank" rel="noopener noreferrer">
-              Details
-              <ExternalLink className="ml-2 h-4 w-4" />
+            {job.status !== 'None' ? job.status : job.type}
+          </Badge>
+        </div>
+
+        {/* Right Part: Actions */}
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end sm:justify-start mt-2 sm:mt-0">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                <MoreVertical className="h-4 w-4" />
+                <span className="sr-only">Job Options</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {(['Saved', 'Applied', 'Interviewing', 'Offer', 'Rejected'] as ApplicationStatus[]).map((statusOption) => (
+                <DropdownMenuItem key={statusOption} onClick={() => onStatusChange(job.id, statusOption)}>
+                   <span className={cn("mr-2 h-2 w-2 rounded-full", {
+                    'bg-primary': statusOption === 'Applied',
+                    'bg-yellow-500': statusOption === 'Interviewing',
+                    'bg-green-500': statusOption === 'Offer',
+                    'bg-destructive': statusOption === 'Rejected',
+                    'bg-muted-foreground': statusOption === 'Saved',
+                  })} />
+                  {statusOption}
+                </DropdownMenuItem>
+              ))}
+              {job.status !== 'None' && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onStatusChange(job.id, 'None')} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                    <XCircle className="mr-2 h-4 w-4" /> Stop Tracking
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground h-8 px-3">
+            <a href={job.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5">
+              Details <ExternalLink className="h-3.5 w-3.5" />
             </a>
           </Button>
         </div>
@@ -89,3 +118,7 @@ export function JobCard({ job, isSaved, onSaveToggle, isApplied, onToggleApplied
     </Card>
   );
 }
+// Added DollarSign and PieChart icons
+const DollarSign = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+);
