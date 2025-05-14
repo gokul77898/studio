@@ -1,6 +1,6 @@
 
 import Link from 'next/link';
-import { Briefcase, Wand2, Lightbulb, FileScan, Mail } from 'lucide-react'; // Added Mail for Cover Letter
+import { Briefcase, Wand2, Lightbulb, FileScan, Mail, Brain } from 'lucide-react';
 
 export function Header() {
   return (
@@ -25,6 +25,10 @@ export function Header() {
           <Link href="/cover-letter-generator" className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors">
             <Mail className="h-4 w-4" />
             Cover&nbsp;Letter&nbsp;AI
+          </Link>
+          <Link href="/skill-gap-analyzer" className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors">
+            <Brain className="h-4 w-4" />
+            Skill&nbsp;Gap&nbsp;AI
           </Link>
           <Link href="/guidance" className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors">
             <Lightbulb className="h-4 w-4" />

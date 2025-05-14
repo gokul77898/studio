@@ -4,4 +4,5 @@ import './flows/aiJobSearchFlow';
 import './flows/careerAdvisorFlow';
 import './flows/resumeAnalyzerFlow';
 import './flows/generateResumeFlow';
-import './flows/generateCoverLetterFlow'; // Added new flow
+import './flows/generateCoverLetterFlow';
+import './flows/skillGapAnalysisFlow'; // Added new flow
