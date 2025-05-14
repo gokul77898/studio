@@ -12,10 +12,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as FormDescriptionComponent } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, AlertTriangle, UploadCloud, FileScan, Sparkles, CheckCircle, XCircle, ListChecks, TrendingUp, Percent, Palette, ScanSearch, SlidersHorizontal } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, UploadCloud, FileScan, Sparkles, CheckCircle, XCircle, ListChecks, TrendingUp, Percent, Palette, ScanSearch, SlidersHorizontal, FilePlus2, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
 import { analyzeResume, type ResumeAnalysisOutput, type ResumeAnalysisInput } from '@/ai/flows/resumeAnalyzerFlow';
+import { generateResume, type GenerateResumeOutput, type GenerateResumeInput } from '@/ai/flows/generateResumeFlow'; // Added
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 
@@ -55,9 +56,12 @@ const fileToDataUri = (file: File): Promise<string> =>
   });
 
 export default function ResumeAnalyzerPage() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+  const [isLoadingGeneration, setIsLoadingGeneration] = useState(false); // New loading state
   const [error, setError] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<ResumeAnalysisOutput | null>(null);
+  const [generatedResume, setGeneratedResume] = useState<string | null>(null); // New state for generated resume
+  const [originalResumeDataUri, setOriginalResumeDataUri] = useState<string | null>(null); // Store for generation
   const { toast } = useToast();
 
   const form = useForm<ResumeAnalyzerFormValues>({
@@ -68,25 +72,29 @@ export default function ResumeAnalyzerPage() {
     }
   });
 
-  const onSubmit: SubmitHandler<ResumeAnalyzerFormValues> = async (data) => {
-    setIsLoading(true);
+  const handleAnalyzeSubmit: SubmitHandler<ResumeAnalyzerFormValues> = async (data) => {
+    setIsLoadingAnalysis(true);
     setError(null);
     setAnalysisResult(null);
+    setGeneratedResume(null); // Clear previous generated resume
+    setOriginalResumeDataUri(null);
 
-    let resumeDataUri: string;
+
+    let resumeDataUriForAnalysis: string;
     try {
-      resumeDataUri = await fileToDataUri(data.resumeFile);
+      resumeDataUriForAnalysis = await fileToDataUri(data.resumeFile);
+      setOriginalResumeDataUri(resumeDataUriForAnalysis); // Save for potential generation
     } catch (fileError) {
       console.error("Error converting resume to data URI:", fileError);
       setError('Failed to process resume file. Please try a different file.');
       form.setError("resumeFile", { type: "manual", message: "Could not process file." });
-      setIsLoading(false);
+      setIsLoadingAnalysis(false);
       return;
     }
 
     try {
       const input: ResumeAnalysisInput = {
-        resumeDataUri: resumeDataUri,
+        resumeDataUri: resumeDataUriForAnalysis,
         jobDescription: data.jobDescription || undefined,
       };
       const result = await analyzeResume(input);
@@ -105,9 +113,45 @@ export default function ResumeAnalyzerPage() {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingAnalysis(false);
     }
   };
+
+  const handleGenerateResume = async () => {
+    if (!analysisResult || !originalResumeDataUri) {
+      setError("Cannot generate resume without prior analysis and original resume data.");
+      return;
+    }
+    setIsLoadingGeneration(true);
+    setError(null);
+    setGeneratedResume(null);
+
+    try {
+      const input: GenerateResumeInput = {
+        originalResumeDataUri: originalResumeDataUri,
+        analysisFeedback: analysisResult,
+        jobDescription: form.getValues("jobDescription") || undefined,
+      };
+      const result = await generateResume(input);
+      setGeneratedResume(result.generatedResumeText);
+      toast({
+        title: "Resume Generated!",
+        description: "Your new resume is ready below.",
+        icon: <FilePlus2 className="h-5 w-5 text-primary" />,
+      });
+    } catch (e) {
+      console.error("Resume generation error:", e);
+      setError('An error occurred during resume generation. Please try again.');
+      toast({
+        title: "Generation Error",
+        description: "An unexpected error occurred while generating the resume.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingGeneration(false);
+    }
+  };
+
 
   const renderScore = (label: string, score: number | undefined, icon: React.ReactNode) => {
     if (score === undefined) return null;
@@ -142,15 +186,15 @@ export default function ResumeAnalyzerPage() {
         <CardHeader>
           <div className="flex items-center gap-3 mb-2">
             <FileScan className="h-8 w-8 text-primary" />
-            <CardTitle className="text-3xl">AI Resume Analyzer</CardTitle>
+            <CardTitle className="text-3xl">AI Resume Analyzer & Generator</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Upload your resume and optionally a job description to get AI-powered feedback and suggestions.
+            Upload your resume and optionally a job description. Get AI-powered feedback, then generate an improved version.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(handleAnalyzeSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
                 name="resumeFile"
@@ -167,11 +211,16 @@ export default function ResumeAnalyzerPage() {
                           id="resumeFile-input"
                           type="file"
                           accept={ACCEPTED_FILE_TYPES.join(",")}
-                          onChange={(e) => onChange(e.target.files?.[0])} // Do not add undefined here
+                          onChange={(e) => {
+                            onChange(e.target.files?.[0]);
+                            setAnalysisResult(null); // Clear previous results on new file
+                            setGeneratedResume(null);
+                            setOriginalResumeDataUri(null);
+                          }}
                           className="hidden"
                           {...restField}
                         />
-                         {value && <Button variant="outline" size="sm" onClick={() => { form.setValue('resumeFile', undefined as any); form.clearErrors('resumeFile'); }}>Clear</Button>}
+                         {value && <Button variant="outline" size="sm" onClick={() => { form.setValue('resumeFile', undefined as any); form.clearErrors('resumeFile'); setAnalysisResult(null); setGeneratedResume(null); setOriginalResumeDataUri(null); }}>Clear</Button>}
                        </div>
                     </FormControl>
                     <FormDescriptionComponent>
@@ -189,20 +238,20 @@ export default function ResumeAnalyzerPage() {
                     <FormLabel className="text-lg">Job Description (Optional)</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Paste the job description here for tailored feedback..."
+                        placeholder="Paste the job description here for tailored feedback and generation..."
                         className="min-h-[150px] text-base"
                         {...field}
                       />
                     </FormControl>
                     <FormDescriptionComponent>
-                      Providing a job description helps the AI give more specific advice on tailoring your resume.
+                      Providing a job description helps the AI give more specific advice and generate a more tailored resume.
                     </FormDescriptionComponent>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={isLoading} className="text-lg py-6 px-8">
-                {isLoading ? (
+              <Button type="submit" disabled={isLoadingAnalysis || isLoadingGeneration} className="text-lg py-6 px-8">
+                {isLoadingAnalysis ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Analyzing...
@@ -220,19 +269,34 @@ export default function ResumeAnalyzerPage() {
       </Card>
 
       {error && (
-        <Alert variant="destructive" className="shadow-md">
+        <Alert variant="destructive" className="shadow-md mt-6">
           <AlertTriangle className="h-5 w-5" />
-          <AlertTitle>Analysis Error</AlertTitle>
+          <AlertTitle>Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      {analysisResult && !isLoading && (
-        <Card className="shadow-xl">
+      {analysisResult && !isLoadingAnalysis && (
+        <Card className="shadow-xl mt-6">
           <CardHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <Sparkles className="h-8 w-8 text-primary" />
-              <CardTitle className="text-3xl">Resume Analysis Results</CardTitle>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 mb-2">
+                <Sparkles className="h-8 w-8 text-primary" />
+                <CardTitle className="text-3xl">Resume Analysis Results</CardTitle>
+              </div>
+               <Button onClick={handleGenerateResume} disabled={isLoadingGeneration || isLoadingAnalysis} className="text-md py-3 px-5">
+                {isLoadingGeneration ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Generate Improved Resume
+                  </>
+                )}
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -297,6 +361,31 @@ export default function ResumeAnalyzerPage() {
           </CardContent>
            <CardFooter>
             <p className="text-xs text-muted-foreground">This analysis is AI-generated and intended as guidance. Always use your best judgment.</p>
+          </CardFooter>
+        </Card>
+      )}
+
+      {generatedResume && !isLoadingGeneration && (
+        <Card className="shadow-xl mt-6">
+          <CardHeader>
+             <div className="flex items-center gap-3 mb-2">
+                <FilePlus2 className="h-8 w-8 text-primary" />
+                <CardTitle className="text-3xl">Generated Resume</CardTitle>
+              </div>
+              <CardDescription>
+                Review the AI-generated resume below. You can copy the text and paste it into your preferred editor.
+              </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              readOnly
+              value={generatedResume}
+              className="min-h-[400px] text-sm whitespace-pre-wrap bg-muted/30 border-dashed"
+              aria-label="Generated Resume Content"
+            />
+          </CardContent>
+          <CardFooter>
+             <p className="text-xs text-muted-foreground">This resume is AI-generated. Please review and edit it carefully to ensure accuracy and fit for your applications.</p>
           </CardFooter>
         </Card>
       )}

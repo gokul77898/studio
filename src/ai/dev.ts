@@ -3,4 +3,5 @@
 import './flows/aiJobSearchFlow';
 import './flows/careerAdvisorFlow';
 import './flows/resumeAnalyzerFlow';
+import './flows/generateResumeFlow'; // Added new flow
 
