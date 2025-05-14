@@ -3,32 +3,27 @@
 import type { Job, FilterCriteria, JobType } from '@/types';
 
 // --- IMPORTANT SETUP ---
-// 1. CHOOSE A JOB AGGREGATOR API:
-//    To get jobs from multiple platforms (Indeed, LinkedIn, etc.), use a job aggregator API.
-//    JSearch API (available on RapidAPI: https://rapidapi.com/letscrape-6BYzPq3KBO2/api/jsearch) is a good option.
-//    It aggregates listings from many sources. Sign up on RapidAPI, subscribe to JSearch (often has a free tier),
-//    and get your API Key.
-//
+// This service is pre-configured for JSearch API (available on RapidAPI).
+// 1. GET YOUR JSEARCH API KEY:
+//    - Go to RapidAPI: https://rapidapi.com/
+//    - Search for "JSearch" API and subscribe (e.g., to the free tier).
+//    - Find your 'X-RapidAPI-Key' on the API's "Endpoints" page.
 // 2. SET API KEY IN .env:
-//    Create or open your .env file in the project root and add your API key:
-//    JOB_SEARCH_API_KEY=your_actual_api_key_here
-//
-// 3. CONFIGURE API_BASE_URL AND HOST:
-//    Update API_BASE_URL and API_HOST below with the correct values for JSearch or your chosen API.
-//    For JSearch on RapidAPI, these are typically:
-//    API_BASE_URL = 'https://jsearch.p.rapidapi.com';
-//    API_HOST = 'jsearch.p.rapidapi.com';
+//    - Open your .env file in the project root.
+//    - Paste your key: JOB_SEARCH_API_KEY=your_actual_jsearch_api_key_here
+//    - Restart your Next.js development server.
 
-const API_BASE_URL = process.env.JOB_API_BASE_URL || 'https://jsearch.p.rapidapi.com'; // Example for JSearch
-const API_HOST = process.env.JOB_API_HOST || 'jsearch.p.rapidapi.com'; // Example for JSearch
+const API_BASE_URL = process.env.JOB_API_BASE_URL || 'https://jsearch.p.rapidapi.com';
+const API_HOST = process.env.JOB_API_HOST || 'jsearch.p.rapidapi.com';
 const API_KEY = process.env.JOB_SEARCH_API_KEY;
 
-// This is an EXAMPLE structure for JSearch API. Adjust to match your chosen API's response.
+// This interface is based on the typical structure of a JSearch API response item.
+// Verify against JSearch documentation if you encounter issues.
 interface ApiJobResponseItem {
   job_id: string;
   job_title: string;
   employer_name?: string;
-  employer_logo?: string;
+  employer_logo?: string | null;
   job_description: string;
   job_country?: string;
   job_city?: string;
@@ -37,152 +32,159 @@ interface ApiJobResponseItem {
   job_apply_link?: string;
   job_posted_at_timestamp?: number;
   job_posted_at_datetime_utc?: string;
-  job_min_salary?: number;
-  job_max_salary?: number;
-  job_salary_currency?: string;
-  job_salary_period?: string; // e.g., HOURLY, MONTHLY, YEARLY
+  job_min_salary?: number | null;
+  job_max_salary?: number | null;
+  job_salary_currency?: string | null;
+  job_salary_period?: string | null; // e.g., HOURLY, MONTHLY, YEARLY
   job_highlights?: {
     Qualifications?: string[];
     Responsibilities?: string[];
     Benefits?: string[];
   };
   job_is_remote?: boolean;
-  // Add other fields as provided by your API
+  // Add other fields as provided by JSearch if needed
 }
 
 function mapApiJobType(apiJobType?: string): Job['type'] {
   const type = apiJobType?.toUpperCase();
-  if (type === 'FULLTIME') return 'Full-time';
-  if (type === 'PARTTIME') return 'Part-time';
-  if (type === 'CONTRACTOR' || type === 'CONTRACT') return 'Contract';
-  if (type === 'INTERN' || type === 'INTERNSHIP') return 'Internship';
-  return 'Full-time'; // Default
+  if (!type) return 'Full-time'; // Default if undefined
+
+  if (type.includes('FULLTIME') || type.includes('FULL_TIME')) return 'Full-time';
+  if (type.includes('PARTTIME') || type.includes('PART_TIME')) return 'Part-time';
+  if (type.includes('CONTRACTOR') || type.includes('CONTRACT')) return 'Contract';
+  if (type.includes('INTERN') || type.includes('INTERNSHIP')) return 'Internship';
+  return 'Full-time'; // Default for unknown types
 }
 
 function formatSalary(apiJob: ApiJobResponseItem): string | undefined {
   if (!apiJob.job_min_salary && !apiJob.job_max_salary) return undefined;
+  
+  const formatNumber = (num: number) => num.toLocaleString(undefined, { maximumFractionDigits: 0 });
+
   const currency = apiJob.job_salary_currency || '';
-  const period = apiJob.job_salary_period ? `/${apiJob.job_salary_period.toLowerCase()}` : '';
+  let period = '';
+  if (apiJob.job_salary_period) {
+      const p = apiJob.job_salary_period.toLowerCase();
+      if (p !== 'yearly' && p !== 'annum') { // Only add period if not yearly, as yearly is often implied
+        period = ` per ${p.replace('ly', '')}`; // hourly -> hour
+      }
+  }
   
   if (apiJob.job_min_salary && apiJob.job_max_salary) {
-    return `${apiJob.job_min_salary.toLocaleString()} - ${apiJob.job_max_salary.toLocaleString()} ${currency}${period}`;
+    return `${formatNumber(apiJob.job_min_salary)} - ${formatNumber(apiJob.job_max_salary)} ${currency}${period}`;
   }
-  if (apiJob.job_min_salary) return `${apiJob.job_min_salary.toLocaleString()} ${currency}${period}`;
-  if (apiJob.job_max_salary) return `${apiJob.job_max_salary.toLocaleString()} ${currency}${period}`;
+  if (apiJob.job_min_salary) return `${formatNumber(apiJob.job_min_salary)} ${currency}${period}`;
+  if (apiJob.job_max_salary) return `${formatNumber(apiJob.job_max_salary)} ${currency}${period}`;
   return undefined;
 }
 
 function getPostedDate(apiJob: ApiJobResponseItem): string {
   if (apiJob.job_posted_at_datetime_utc) {
-    return new Date(apiJob.job_posted_at_datetime_utc).toISOString();
+    try {
+      return new Date(apiJob.job_posted_at_datetime_utc).toISOString();
+    } catch (e) { /* ignore invalid date */ }
   }
   if (apiJob.job_posted_at_timestamp) {
-    return new Date(apiJob.job_posted_at_timestamp * 1000).toISOString();
+    try {
+      return new Date(apiJob.job_posted_at_timestamp * 1000).toISOString();
+    } catch (e) { /* ignore invalid date */ }
   }
-  return new Date().toISOString(); // Fallback
+  return new Date().toISOString(); // Fallback to current date if parsing fails or no date
 }
 
 export async function fetchRealTimeJobs(filters: FilterCriteria, limit: number = 20): Promise<Job[]> {
-  if (!API_KEY) {
-    console.error('JOB_SEARCH_API_KEY is not set in .env file.');
-    // You might want to throw an error or return mock data for local development without an API key
-    // throw new Error('API Key is missing. Please set JOB_SEARCH_API_KEY in your .env file.');
-    console.warn("JOB_SEARCH_API_KEY missing. Returning empty job list.");
+  if (!API_KEY || API_KEY === 'your_actual_jsearch_api_key_here' || API_KEY.trim() === '') {
+    console.error('JOB_SEARCH_API_KEY is not set or is still the placeholder in .env file. Please obtain a valid API key for JSearch from RapidAPI.');
+    console.warn("Returning empty job list. Configure API key for real job data.");
     return [];
   }
-  if (API_BASE_URL === 'https://jsearch.p.rapidapi.com' && API_HOST === 'jsearch.p.rapidapi.com' && (API_KEY === 'your_actual_api_key_here' || !API_KEY)) {
-     console.warn('Using placeholder API URL/Host or missing API Key for JSearch. Please configure `JOB_SEARCH_API_KEY`, `JOB_API_BASE_URL` (optional), and `JOB_API_HOST` (optional) in .env for real job data. Service will return empty array.');
+   if (API_BASE_URL === 'https://jsearch.p.rapidapi.com' && API_HOST === 'jsearch.p.rapidapi.com' && (API_KEY === 'your_actual_api_key_here' || !API_KEY)) {
+     console.warn('Using placeholder API URL/Host or missing API Key for JSearch. Please configure `JOB_SEARCH_API_KEY` in .env for real job data. Service will return empty array.');
      return [];
   }
 
-
-  // Construct query for the API. This is an example for JSearch.
-  // Refer to your chosen API's documentation for correct parameters.
   let queryParts = [];
   if (filters.keyword) queryParts.push(filters.keyword);
   
   let locationQuery = "";
-  if(filters.area) locationQuery = filters.area;
+  if(filters.area) locationQuery = filters.area; // Most specific
   else if(filters.city) locationQuery = filters.city;
   else if(filters.state) locationQuery = filters.state;
   else if(filters.country) locationQuery = filters.country;
-  else if(filters.location && filters.location !== 'All Locations') locationQuery = filters.location;
-  else locationQuery = "Worldwide"; // Default if no specific location
+  else if(filters.location && filters.location !== 'All Locations' && filters.location.toLowerCase() !== 'worldwide') {
+     locationQuery = filters.location; // General location dropdown value
+  } else {
+      locationQuery = "Worldwide"; // Default if no specific location
+  }
 
-  if(locationQuery) queryParts.push(`in ${locationQuery}`);
+  if(locationQuery && locationQuery.toLowerCase() !== 'worldwide') {
+    queryParts.push(locationQuery); // JSearch query format is often "keyword location" e.g. "React Developer New York"
+  }
   
-  const query = queryParts.join(' ') || 'Software Developer'; // Default query if empty
+  const query = queryParts.join(' ') || 'Software Developer Worldwide';
 
 
   const queryParams = new URLSearchParams({
     query: query,
     page: '1',
-    num_pages: '1', // For JSearch, num_pages means "how many pages of results to fetch". Limit is often per page.
-                     // JSearch's `limit` parameter seems to be deprecated or not standard.
-                     // You might fetch 1 page and then take `limit` items from it.
-                     // For more than ~20-40 results, you might need multiple page fetches if API has per-page limits.
-    // JSearch specific examples - adapt or remove based on your API:
-    // date_posted: 'all',
-    // employment_types: filters.jobTypes?.map(jt => jt.toUpperCase().replace('-', '_')).join(','), // e.g. FULL_TIME,PART_TIME
-    // job_requirements: 'no_experience_required,under_3_years_experience', // example
+    num_pages: '1', // JSearch usually returns ~40 results per page with num_pages=1. Adjust if more needed.
+    // date_posted: 'all', // Example for JSearch, uncomment or modify as needed
   });
 
-  // If your API supports a direct limit parameter, use it:
-  // queryParams.append('limit', limit.toString());
-  // JSearch seems to return 40 results per page by default. So we'll fetch one page and slice.
-  // For more results, pagination logic would be needed.
+  if (filters.jobTypes && filters.jobTypes.length > 0) {
+    // JSearch expects comma-separated, uppercase employment types e.g. FULLTIME,PARTTIME
+    const apiJobTypes = filters.jobTypes.map(jt => jt.toUpperCase().replace('-', '').replace(' ', '_')).join(',');
+    queryParams.append('employment_types', apiJobTypes);
+  }
 
   const endpoint = `${API_BASE_URL}/search`;
 
   try {
-    console.log(`Fetching jobs from: ${endpoint} with query: ${queryParams.toString()}`);
+    console.log(`Fetching jobs from JSearch: ${endpoint} with query: ${queryParams.toString()}`);
     const response = await fetch(`${endpoint}?${queryParams.toString()}`, {
       method: 'GET',
       headers: {
         'X-RapidAPI-Key': API_KEY,
-        'X-RapidAPI-Host': API_HOST, // e.g., 'jsearch.p.rapidapi.com'
+        'X-RapidAPI-Host': API_HOST, // Should be 'jsearch.p.rapidapi.com' for JSearch
       },
+      cache: 'no-store', // Disable caching for job searches to get fresh data
     });
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`API Error ${response.status}: ${response.statusText}`, errorBody);
-      throw new Error(`Failed to fetch jobs (${response.status}): ${errorBody || response.statusText}`);
+      console.error(`JSearch API Error ${response.status}: ${response.statusText}`, errorBody);
+      throw new Error(`Failed to fetch jobs from JSearch (${response.status}): ${errorBody || response.statusText}`);
     }
 
     const result = await response.json();
-    const apiJobs: ApiJobResponseItem[] = result.data || [];
+    const apiJobs: ApiJobResponseItem[] = result.data || []; // JSearch nests jobs in the 'data' property
 
     if (!apiJobs || apiJobs.length === 0) {
-      console.log("No jobs found from API for the given query.");
+      console.log("No jobs found from JSearch API for the given query.");
       return [];
     }
 
-    // Map the API response to your Job[] type
     return apiJobs.slice(0, limit).map((apiJob): Job => ({
       id: apiJob.job_id || crypto.randomUUID(),
       title: apiJob.job_title || 'N/A',
       company: apiJob.employer_name || 'N/A',
       description: apiJob.job_description || 'No description available.',
-      location: `${apiJob.job_city ? apiJob.job_city + ', ' : ''}${apiJob.job_state ? apiJob.job_state + ', ' : ''}${apiJob.job_country || (apiJob.job_is_remote ? 'Remote' : 'Unknown Location')}`,
+      location: apiJob.job_is_remote ? 'Remote' : `${apiJob.job_city ? apiJob.job_city + ', ' : ''}${apiJob.job_state ? apiJob.job_state + ', ' : ''}${apiJob.job_country || 'Unknown Location'}`,
       type: mapApiJobType(apiJob.job_employment_type),
       url: apiJob.job_apply_link || '#',
       postedDate: getPostedDate(apiJob),
       salary: formatSalary(apiJob),
-      equity: apiJob.job_highlights?.Benefits?.some(b => b.toLowerCase().includes('equity')), // Example, highly API dependent
+      equity: apiJob.job_highlights?.Benefits?.some(b => typeof b === 'string' && b.toLowerCase().includes('equity')) || false,
     }));
 
   } catch (error) {
-    console.error('Error in fetchRealTimeJobs:', error);
-    if (error instanceof Error && error.message.includes('API Key is missing')) {
+    console.error('Error in fetchRealTimeJobs (JSearch):', error);
+    if (error instanceof Error && (error.message.includes('API Key is missing') || error.message.includes('JOB_SEARCH_API_KEY is not set'))) {
       // Already handled, or handle more gracefully
     } else {
-      // Potentially re-throw or return empty to not break UI
-      // For now, re-throwing to make it visible
+       // Re-throw other errors to be caught by the calling page
        throw error;
     }
     return []; // Fallback to empty array on error
   }
 }
-
-    
