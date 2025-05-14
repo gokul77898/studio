@@ -1,6 +1,6 @@
 
 import Link from 'next/link';
-import { Briefcase, Wand2 } from 'lucide-react'; // Or a more generic 'Compass' icon if available
+import { Briefcase, Wand2, Lightbulb, FileScan } from 'lucide-react'; // Added FileScan
 
 export function Header() {
   return (
@@ -10,7 +10,7 @@ export function Header() {
           <Briefcase className="h-7 w-7" />
           <h1 className="text-2xl font-semibold">Career Compass</h1>
         </Link>
-        <nav className="flex items-center gap-4 md:gap-6">
+        <nav className="flex items-center gap-3 md:gap-5">
           <Link href="/" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
             Jobs
           </Link>
@@ -18,7 +18,12 @@ export function Header() {
             <Wand2 className="h-4 w-4" />
             AI Search
           </Link>
-          <Link href="/guidance" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+          <Link href="/resume-analyzer" className="flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary transition-colors">
+            <FileScan className="h-4 w-4" />
+            Resume AI
+          </Link>
+          <Link href="/guidance" className="flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary transition-colors">
+            <Lightbulb className="h-4 w-4" />
             Guidance
           </Link>
         </nav>
