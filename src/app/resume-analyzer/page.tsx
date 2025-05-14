@@ -12,11 +12,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as FormDescriptionComponent } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, AlertTriangle, UploadCloud, FileScan, Sparkles, CheckCircle, XCircle, ListChecks, TrendingUp, Percent, Palette, ScanSearch, SlidersHorizontal, FilePlus2, RefreshCw } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, UploadCloud, FileScan, Sparkles, CheckCircle, XCircle, ListChecks, TrendingUp, Percent, Palette, ScanSearch, SlidersHorizontal, FilePlus2, RefreshCw, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
 import { analyzeResume, type ResumeAnalysisOutput, type ResumeAnalysisInput } from '@/ai/flows/resumeAnalyzerFlow';
-import { generateResume, type GenerateResumeOutput, type GenerateResumeInput } from '@/ai/flows/generateResumeFlow'; // Added
+import { generateResume, type GenerateResumeOutput, type GenerateResumeInput } from '@/ai/flows/generateResumeFlow';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 
@@ -55,13 +55,20 @@ const fileToDataUri = (file: File): Promise<string> =>
     reader.readAsDataURL(file);
   });
 
+const stringToDataUri = (text: string, mimeType: string = "text/markdown"): string => {
+  const base64Text = btoa(unescape(encodeURIComponent(text))); // Ensure proper UTF-8 handling for btoa
+  return `data:${mimeType};base64,${base64Text}`;
+}
+
 export default function ResumeAnalyzerPage() {
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
-  const [isLoadingGeneration, setIsLoadingGeneration] = useState(false); // New loading state
+  const [isLoadingGeneration, setIsLoadingGeneration] = useState(false);
+  const [isLoadingGeneratedResumeAnalysis, setIsLoadingGeneratedResumeAnalysis] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<ResumeAnalysisOutput | null>(null);
-  const [generatedResume, setGeneratedResume] = useState<string | null>(null); // New state for generated resume
-  const [originalResumeDataUri, setOriginalResumeDataUri] = useState<string | null>(null); // Store for generation
+  const [generatedResumeText, setGeneratedResumeText] = useState<string | null>(null);
+  const [generatedResumeAnalysisResult, setGeneratedResumeAnalysisResult] = useState<ResumeAnalysisOutput | null>(null);
+  const [originalResumeDataUri, setOriginalResumeDataUri] = useState<string | null>(null);
   const { toast } = useToast();
 
   const form = useForm<ResumeAnalyzerFormValues>({
@@ -76,14 +83,14 @@ export default function ResumeAnalyzerPage() {
     setIsLoadingAnalysis(true);
     setError(null);
     setAnalysisResult(null);
-    setGeneratedResume(null); // Clear previous generated resume
+    setGeneratedResumeText(null);
+    setGeneratedResumeAnalysisResult(null);
     setOriginalResumeDataUri(null);
-
 
     let resumeDataUriForAnalysis: string;
     try {
       resumeDataUriForAnalysis = await fileToDataUri(data.resumeFile);
-      setOriginalResumeDataUri(resumeDataUriForAnalysis); // Save for potential generation
+      setOriginalResumeDataUri(resumeDataUriForAnalysis);
     } catch (fileError) {
       console.error("Error converting resume to data URI:", fileError);
       setError('Failed to process resume file. Please try a different file.');
@@ -117,6 +124,32 @@ export default function ResumeAnalyzerPage() {
     }
   };
 
+  const analyzeGeneratedResume = async (markdownText: string, jobDesc?: string) => {
+    setIsLoadingGeneratedResumeAnalysis(true);
+    try {
+      const generatedResumeDataUri = stringToDataUri(markdownText, "text/markdown");
+      const analysisInput: ResumeAnalysisInput = {
+        resumeDataUri: generatedResumeDataUri,
+        jobDescription: jobDesc,
+      };
+      const result = await analyzeResume(analysisInput);
+      setGeneratedResumeAnalysisResult(result);
+      toast({
+        title: "Generated Resume Analyzed!",
+        description: "Feedback for the new resume is now available.",
+      });
+    } catch (e) {
+      console.error("Error analyzing generated resume:", e);
+      setError("An error occurred while analyzing the generated resume.");
+      toast({
+        title: "Generated Resume Analysis Error",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingGeneratedResumeAnalysis(false);
+    }
+  };
+
   const handleGenerateResume = async () => {
     if (!analysisResult || !originalResumeDataUri) {
       setError("Cannot generate resume without prior analysis and original resume data.");
@@ -124,7 +157,8 @@ export default function ResumeAnalyzerPage() {
     }
     setIsLoadingGeneration(true);
     setError(null);
-    setGeneratedResume(null);
+    setGeneratedResumeText(null);
+    setGeneratedResumeAnalysisResult(null); // Clear previous analysis of generated resume
 
     try {
       const input: GenerateResumeInput = {
@@ -133,12 +167,16 @@ export default function ResumeAnalyzerPage() {
         jobDescription: form.getValues("jobDescription") || undefined,
       };
       const result = await generateResume(input);
-      setGeneratedResume(result.generatedResumeText);
+      setGeneratedResumeText(result.generatedResumeText);
       toast({
         title: "Resume Generated!",
-        description: "Your new resume is ready below.",
+        description: "Your new resume is ready. Analyzing it now...",
         icon: <FilePlus2 className="h-5 w-5 text-primary" />,
       });
+      // Automatically analyze the generated resume
+      if (result.generatedResumeText) {
+        await analyzeGeneratedResume(result.generatedResumeText, form.getValues("jobDescription") || undefined);
+      }
     } catch (e) {
       console.error("Resume generation error:", e);
       setError('An error occurred during resume generation. Please try again.');
@@ -152,22 +190,21 @@ export default function ResumeAnalyzerPage() {
     }
   };
 
-
-  const renderScore = (label: string, score: number | undefined, icon: React.ReactNode) => {
+  const renderScoreWithProgress = (label: string, score: number | undefined, icon: React.ReactNode, progressClassName?: string) => {
     if (score === undefined) return null;
-    const percentage = score * 10; // Assuming score is 1-10
+    const percentage = score * 10; 
     return (
       <div className="space-y-1">
         <div className="flex items-center justify-between text-sm">
           <span className="font-medium flex items-center gap-2">{icon} {label}</span>
           <span className="text-primary font-semibold">{score}/10</span>
         </div>
-        <Progress value={percentage} className="h-2" />
+        <Progress value={percentage} className={cn("h-2", progressClassName)} />
       </div>
     );
   };
   
-  const renderSuitabilityScore = (score: number | undefined) => {
+  const renderSuitabilityScoreWithProgress = (score: number | undefined, progressClassName?: string) => {
     if (score === undefined) return null;
     return (
       <div className="space-y-1">
@@ -175,10 +212,66 @@ export default function ResumeAnalyzerPage() {
           <span className="font-medium flex items-center gap-2"><Percent className="h-4 w-4 text-accent"/> Job Suitability</span>
           <span className="text-accent font-semibold">{score}/100</span>
         </div>
-        <Progress value={score} className="h-2 [&>div]:bg-accent" />
+        <Progress value={score} className={cn("h-2 [&>div]:bg-accent", progressClassName)} />
       </div>
     );
+  };
+
+  const renderAnalysisDetails = (currentAnalysis: ResumeAnalysisOutput | null, titlePrefix: string = "") => {
+    if (!currentAnalysis) return null;
+    return (
+      <>
+        <div>
+          <h3 className="text-xl font-semibold mb-2 flex items-center gap-2"><SlidersHorizontal className="h-5 w-5 text-accent" />{titlePrefix}Overall Feedback</h3>
+          <p className="text-foreground/90 whitespace-pre-wrap">{currentAnalysis.overallFeedback}</p>
+        </div>
+        <Separator />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500" />{titlePrefix}Strengths</h3>
+            <ul className="list-disc space-y-2 pl-5 text-foreground/90">
+              {currentAnalysis.strengths.map((item, index) => <li key={`strength-${titlePrefix.toLowerCase()}-${index}`}>{item}</li>)}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><TrendingUp className="h-5 w-5 text-blue-500" />{titlePrefix}Areas for Improvement</h3>
+            <ul className="list-disc space-y-2 pl-5 text-foreground/90">
+              {currentAnalysis.areasForImprovement.map((item, index) => <li key={`improvement-${titlePrefix.toLowerCase()}-${index}`}>{item}</li>)}
+            </ul>
+          </div>
+        </div>
+        {(currentAnalysis.tailoringTips && currentAnalysis.tailoringTips.length > 0) && (
+          <> <Separator /> <div>
+              <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><ListChecks className="h-5 w-5 text-indigo-500" />{titlePrefix}Tailoring Tips</h3>
+              <ul className="list-disc space-y-2 pl-5 text-foreground/90">
+                {currentAnalysis.tailoringTips.map((item, index) => <li key={`tailoring-${titlePrefix.toLowerCase()}-${index}`}>{item}</li>)}
+              </ul>
+            </div>
+          </>
+        )}
+        {(currentAnalysis.keywordSuggestions && currentAnalysis.keywordSuggestions.length > 0) && (
+           <> <Separator /> <div>
+              <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><ScanSearch className="h-5 w-5 text-purple-500" />{titlePrefix}Keyword Suggestions</h3>
+              <ul className="list-disc space-y-2 pl-5 text-foreground/90">
+                {currentAnalysis.keywordSuggestions.map((item, index) => <li key={`keyword-${titlePrefix.toLowerCase()}-${index}`}>{item}</li>)}
+              </ul>
+            </div>
+          </>
+        )}
+        <Separator />
+        <div>
+          <h3 className="text-xl font-semibold mb-4">{titlePrefix}Scores & Ratings</h3>
+          <div className="space-y-4">
+            {renderScoreWithProgress("Formatting & Clarity", currentAnalysis.formattingClarityScore, <Palette className="h-4 w-4 text-orange-500" />)}
+            {renderScoreWithProgress("ATS Friendliness", currentAnalysis.atsFriendlinessScore, <FileScan className="h-4 w-4 text-teal-500" />)}
+            {renderScoreWithProgress("Impact Quantification", currentAnalysis.impactQuantificationScore, <TrendingUp className="h-4 w-4 text-pink-500" />)}
+            {renderSuitabilityScoreWithProgress(currentAnalysis.suitabilityScore)}
+          </div>
+        </div>
+      </>
+    );
   }
+
 
   return (
     <div className="space-y-8">
@@ -213,14 +306,15 @@ export default function ResumeAnalyzerPage() {
                           accept={ACCEPTED_FILE_TYPES.join(",")}
                           onChange={(e) => {
                             onChange(e.target.files?.[0]);
-                            setAnalysisResult(null); // Clear previous results on new file
-                            setGeneratedResume(null);
+                            setAnalysisResult(null); 
+                            setGeneratedResumeText(null);
+                            setGeneratedResumeAnalysisResult(null);
                             setOriginalResumeDataUri(null);
                           }}
                           className="hidden"
                           {...restField}
                         />
-                         {value && <Button variant="outline" size="sm" onClick={() => { form.setValue('resumeFile', undefined as any); form.clearErrors('resumeFile'); setAnalysisResult(null); setGeneratedResume(null); setOriginalResumeDataUri(null); }}>Clear</Button>}
+                         {value && <Button variant="outline" size="sm" onClick={() => { form.setValue('resumeFile', undefined as any); form.clearErrors('resumeFile'); setAnalysisResult(null); setGeneratedResumeText(null); setGeneratedResumeAnalysisResult(null); setOriginalResumeDataUri(null); }}>Clear</Button>}
                        </div>
                     </FormControl>
                     <FormDescriptionComponent>
@@ -250,11 +344,11 @@ export default function ResumeAnalyzerPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={isLoadingAnalysis || isLoadingGeneration} className="text-lg py-6 px-8">
+              <Button type="submit" disabled={isLoadingAnalysis || isLoadingGeneration || isLoadingGeneratedResumeAnalysis} className="text-lg py-6 px-8">
                 {isLoadingAnalysis ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Analyzing...
+                    Analyzing Original...
                   </>
                 ) : (
                   <>
@@ -282,9 +376,9 @@ export default function ResumeAnalyzerPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 mb-2">
                 <Sparkles className="h-8 w-8 text-primary" />
-                <CardTitle className="text-3xl">Resume Analysis Results</CardTitle>
+                <CardTitle className="text-3xl">Original Resume Analysis</CardTitle>
               </div>
-               <Button onClick={handleGenerateResume} disabled={isLoadingGeneration || isLoadingAnalysis} className="text-md py-3 px-5">
+               <Button onClick={handleGenerateResume} disabled={isLoadingGeneration || isLoadingAnalysis || isLoadingGeneratedResumeAnalysis} className="text-md py-3 px-5">
                 {isLoadingGeneration ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -300,95 +394,74 @@ export default function ResumeAnalyzerPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div>
-              <h3 className="text-xl font-semibold mb-2 flex items-center gap-2"><SlidersHorizontal className="h-5 w-5 text-accent" />Overall Feedback</h3>
-              <p className="text-foreground/90 whitespace-pre-wrap">{analysisResult.overallFeedback}</p>
-            </div>
-            
-            <Separator />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><CheckCircle className="h-5 w-5 text-green-500" />Strengths</h3>
-                <ul className="list-disc space-y-2 pl-5 text-foreground/90">
-                  {analysisResult.strengths.map((item, index) => <li key={`strength-${index}`}>{item}</li>)}
-                </ul>
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><TrendingUp className="h-5 w-5 text-blue-500" />Areas for Improvement</h3>
-                <ul className="list-disc space-y-2 pl-5 text-foreground/90">
-                  {analysisResult.areasForImprovement.map((item, index) => <li key={`improvement-${index}`}>{item}</li>)}
-                </ul>
-              </div>
-            </div>
-
-            {(analysisResult.tailoringTips && analysisResult.tailoringTips.length > 0) && (
-              <>
-                <Separator />
-                <div>
-                  <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><ListChecks className="h-5 w-5 text-indigo-500" />Tailoring Tips (for provided Job Description)</h3>
-                  <ul className="list-disc space-y-2 pl-5 text-foreground/90">
-                    {analysisResult.tailoringTips.map((item, index) => <li key={`tailoring-${index}`}>{item}</li>)}
-                  </ul>
-                </div>
-              </>
-            )}
-            
-            {(analysisResult.keywordSuggestions && analysisResult.keywordSuggestions.length > 0) && (
-               <>
-                <Separator />
-                <div>
-                  <h3 className="text-xl font-semibold mb-3 flex items-center gap-2"><ScanSearch className="h-5 w-5 text-purple-500" />Keyword Suggestions</h3>
-                  <ul className="list-disc space-y-2 pl-5 text-foreground/90">
-                    {analysisResult.keywordSuggestions.map((item, index) => <li key={`keyword-${index}`}>{item}</li>)}
-                  </ul>
-                </div>
-              </>
-            )}
-            
-            <Separator />
-
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Scores & Ratings</h3>
-              <div className="space-y-4">
-                {renderScore("Formatting & Clarity", analysisResult.formattingClarityScore, <Palette className="h-4 w-4 text-orange-500" />)}
-                {renderScore("ATS Friendliness", analysisResult.atsFriendlinessScore, <FileScan className="h-4 w-4 text-teal-500" />)}
-                {renderScore("Impact Quantification", analysisResult.impactQuantificationScore, <TrendingUp className="h-4 w-4 text-pink-500" />)}
-                {renderSuitabilityScore(analysisResult.suitabilityScore)}
-              </div>
-            </div>
-
+            {renderAnalysisDetails(analysisResult)}
           </CardContent>
            <CardFooter>
             <p className="text-xs text-muted-foreground">This analysis is AI-generated and intended as guidance. Always use your best judgment.</p>
           </CardFooter>
         </Card>
       )}
+      
+      {isLoadingGeneration && (
+         <div className="flex justify-center items-center py-10">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="ml-3 text-md text-muted-foreground">Generating improved resume...</p>
+        </div>
+      )}
 
-      {generatedResume && !isLoadingGeneration && (
+
+      {generatedResumeText && !isLoadingGeneration && (
         <Card className="shadow-xl mt-6">
           <CardHeader>
              <div className="flex items-center gap-3 mb-2">
                 <FilePlus2 className="h-8 w-8 text-primary" />
-                <CardTitle className="text-3xl">Generated Resume</CardTitle>
+                <CardTitle className="text-3xl">AI-Generated Resume</CardTitle>
               </div>
-              <CardDescription>
-                Review the AI-generated resume below. You can copy the text and paste it into your preferred editor.
+              <CardDescription className="flex items-start gap-2">
+                <Info className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
+                <span>
+                  The AI has generated the resume content below in Markdown format. Copy this text and paste it into your preferred document editor (e.g., Google Docs, Microsoft Word) to apply your desired styling, fonts, and layout.
+                </span>
               </CardDescription>
           </CardHeader>
           <CardContent>
             <Textarea
               readOnly
-              value={generatedResume}
-              className="min-h-[400px] text-sm whitespace-pre-wrap bg-muted/30 border-dashed"
+              value={generatedResumeText}
+              className="min-h-[400px] text-sm whitespace-pre-wrap bg-muted/30 border-dashed font-mono"
               aria-label="Generated Resume Content"
             />
           </CardContent>
+        </Card>
+      )}
+
+      {isLoadingGeneratedResumeAnalysis && !generatedResumeAnalysisResult && (
+         <div className="flex justify-center items-center py-10 mt-6">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="ml-3 text-md text-muted-foreground">Analyzing generated resume...</p>
+        </div>
+      )}
+
+      {generatedResumeAnalysisResult && !isLoadingGeneratedResumeAnalysis && (
+        <Card className="shadow-xl mt-6">
+          <CardHeader>
+            <div className="flex items-center gap-3 mb-2">
+                <Sparkles className="h-8 w-8 text-green-600" /> {/* Changed icon color for distinction */}
+                <CardTitle className="text-3xl">Analysis of Generated Resume</CardTitle>
+            </div>
+            <CardDescription>
+                Feedback on the AI-generated resume content.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {renderAnalysisDetails(generatedResumeAnalysisResult, "Generated ")}
+          </CardContent>
           <CardFooter>
-             <p className="text-xs text-muted-foreground">This resume is AI-generated. Please review and edit it carefully to ensure accuracy and fit for your applications.</p>
+            <p className="text-xs text-muted-foreground">This analysis is AI-generated. Please review and edit the generated resume carefully to ensure accuracy and fit for your applications.</p>
           </CardFooter>
         </Card>
       )}
     </div>
   );
 }
+
