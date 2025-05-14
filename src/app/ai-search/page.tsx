@@ -15,9 +15,8 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Wand2, AlertTriangle, Briefcase, UploadCloud, MapPin, BriefcaseBusiness, Github, Globe, Building, Map, Pin, XCircle, CheckCircle2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { JobCard } from '@/components/JobCard';
-import type { Job, JobType } from '@/types';
-// import { mockJobs } from '@/data/mockJobs'; // Replaced with real-time fetching
-import { jobTypes as allJobTypes, locations as allLocations } from '@/data/mockJobs'; // Keep these for filter options
+import type { Job, JobType, FilterCriteria } from '@/types'; // Added FilterCriteria
+import { jobTypes as allJobTypes, locations as allLocations } from '@/data/mockJobs';
 import { fetchRealTimeJobs } from '@/services/jobSearchService';
 import { aiJobSearch, type AiJobSearchOutput } from '@/ai/flows/aiJobSearchFlow';
 import useLocalStorage from '@/hooks/useLocalStorage';
@@ -82,12 +81,15 @@ const defaultFormValues: AiSearchFormValues = {
   githubUrl: '',
 };
 
+// How many candidate jobs to fetch for the AI to analyze
+const CANDIDATE_JOBS_LIMIT = 50; 
+
 export default function AiSearchPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingJobs, setIsFetchingJobs] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recommendedJobsDisplay, setRecommendedJobsDisplay] = useState<RecommendedJobDisplay[]>([]);
-  const [fetchedJobsForAI, setFetchedJobsForAI] = useState<Job[]>([]); // Store jobs fetched for AI
+  // const [fetchedJobsForAI, setFetchedJobsForAI] = useState<Job[]>([]); // No longer need to store separately like this
   const [savedJobIds, setSavedJobIds] = useLocalStorage<string[]>('savedJobIds', []);
   const [appliedJobIds, setAppliedJobIds] = useLocalStorage<string[]>('appliedJobIds', []);
   const { toast } = useToast();
@@ -136,7 +138,7 @@ export default function AiSearchPage() {
   const handleClearFilters = () => {
     form.reset(defaultFormValues);
     setRecommendedJobsDisplay([]);
-    setFetchedJobsForAI([]);
+    // setFetchedJobsForAI([]); // No longer needed
     setError(null);
     toast({
       title: "Filters Cleared",
@@ -146,8 +148,8 @@ export default function AiSearchPage() {
 
 
   const onSubmit: SubmitHandler<AiSearchFormValues> = async (data) => {
-    setIsLoading(true);
-    setIsFetchingJobs(true);
+    setIsLoading(true); // This now represents the AI analysis phase primarily
+    setIsFetchingJobs(true); // This represents the job fetching phase
     setError(null);
     setRecommendedJobsDisplay([]);
 
@@ -166,22 +168,24 @@ export default function AiSearchPage() {
     }
 
     try {
-      // Fetch jobs from the real-time service based on form inputs
-      // This example fetches a broad set of jobs; you might refine this
-      // to pass more specific filters if your API and AI flow are designed for it.
-      const filterCriteriaForFetch: Pick<AiSearchFormValues, "keyword" | "location" | "country" | "state" | "city" | "area" | "jobType"> & { jobTypes?: JobType[] } = {
+      // Step 1: Fetch candidate jobs using jobSearchService
+      const filterCriteriaForFetch: FilterCriteria = {
         keyword: data.skills, // Use skills as keyword for initial fetch
-        location: data.location,
+        location: data.location || '', // Ensure empty string if undefined
         country: data.country,
         state: data.state,
         city: data.city,
         area: data.area,
-        jobType: data.jobType,
-        jobTypes: data.jobType ? [data.jobType as JobType] : []
+        jobTypes: data.jobType ? [data.jobType as JobType] : [],
       };
       
-      const fetchedJobs = await fetchRealTimeJobs(filterCriteriaForFetch, 100); // Fetch up to 100 jobs for AI to parse
-      setFetchedJobsForAI(fetchedJobs); // Store them for display or re-use
+      toast({
+        title: "Fetching Live Jobs...",
+        description: `Searching for jobs based on: ${data.skills}, ${data.location || 'any location'}...`,
+      });
+
+      const fetchedJobs = await fetchRealTimeJobs(filterCriteriaForFetch, CANDIDATE_JOBS_LIMIT);
+      // setFetchedJobsForAI(fetchedJobs); // No longer need to store if AI flow gets them directly
       setIsFetchingJobs(false);
 
 
@@ -191,11 +195,17 @@ export default function AiSearchPage() {
             description: "The initial job fetch returned no results. AI search cannot proceed. Try broader criteria for fetching jobs.",
             variant: "default",
         });
-        setIsLoading(false);
+        setIsLoading(false); // Stop overall loading
         return;
       }
+      
+      toast({
+        title: "Jobs Fetched, AI Analyzing...",
+        description: `Found ${fetchedJobs.length} potential jobs. Now asking AI to find the best matches...`,
+      });
+      setIsLoading(true); // Ensure isLoading is true for AI analysis phase
 
-
+      // Step 2: Pass fetched jobs to AI for analysis
       const detailedLocation = {
         country: data.country || undefined,
         state: data.state || undefined,
@@ -208,7 +218,7 @@ export default function AiSearchPage() {
       const result: AiJobSearchOutput = await aiJobSearch({
         skills: data.skills,
         resumeDataUri: resumeDataUri,
-        availableJobs: fetchedJobs.map(job => ({ // Ensure equity is boolean or undefined
+        availableJobs: fetchedJobs.map(job => ({ 
             ...job,
             equity: job.equity === undefined ? undefined : Boolean(job.equity),
         })),
@@ -221,32 +231,35 @@ export default function AiSearchPage() {
       if (result.recommendations && result.recommendations.length > 0) {
         const detailedRecommendations: RecommendedJobDisplay[] = result.recommendations
           .map(rec => {
-            // Find job from the list we provided to the AI
             const jobDetails = fetchedJobs.find(job => job.id === rec.jobId);
             return jobDetails ? { ...jobDetails, reason: rec.reason } : null;
           })
           .filter((job): job is RecommendedJobDisplay => job !== null);
         setRecommendedJobsDisplay(detailedRecommendations);
+        toast({
+            title: "AI Recommendations Ready!",
+            description: `AI found ${detailedRecommendations.length} relevant jobs for you.`,
+        });
       } else {
         setRecommendedJobsDisplay([]);
         toast({
-            title: "No specific matches found by AI",
+            title: "No Specific Matches Found by AI",
             description: "The AI couldn't find specific job matches from the fetched jobs. Try broadening your search criteria.",
             variant: "default",
         });
       }
     } catch (e) {
-      console.error(e);
+      console.error("AI Search Page Error:", e);
       const errorMessage = e instanceof Error ? e.message : 'An error occurred while searching for jobs.';
-      setError(errorMessage + " You might need to configure the job search API in `src/services/jobSearchService.ts` and set the API key in your `.env` file.");
+      setError(errorMessage + " Ensure your JOB_SEARCH_API_KEY is valid and `src/services/jobSearchService.ts` is correctly configured for your chosen API.");
       toast({
         title: "Search Error",
-        description: errorMessage,
+        description: errorMessage.substring(0, 200), // Keep toast message concise
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
-      setIsFetchingJobs(false);
+      setIsLoading(false); // Overall loading stops
+      setIsFetchingJobs(false); // Fetching specific phase stops
     }
   };
 
@@ -259,7 +272,7 @@ export default function AiSearchPage() {
             <CardTitle className="text-3xl">AI Powered Global Job Search</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Describe your skills, preferences, and optionally upload your resume or GitHub. Our AI will search live job listings to find relevant jobs from around the world.
+            Describe your skills, preferences, and optionally upload your resume or GitHub. Our AI will first fetch live job listings based on your keywords/location, then analyze them to find the most relevant global jobs for you.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -317,7 +330,7 @@ export default function AiSearchPage() {
               <div className="space-y-2">
                 <p className="text-lg font-medium">Location Preferences (Optional)</p>
                 <FormDescriptionComponent>
-                  Use the general location dropdown for broad areas (including global/remote) or provide specific details below for a more targeted search.
+                  Use the general location dropdown for broad areas (including global/remote) or provide specific details below for a more targeted search. These will guide the initial job fetch.
                 </FormDescriptionComponent>
               </div>
 
@@ -461,10 +474,10 @@ export default function AiSearchPage() {
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Fetching Live Jobs...
                     </>
-                  ) : isLoading ? (
+                  ) : isLoading ? ( // This 'isLoading' refers to AI Analysis phase now
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      AI Analyzing...
+                      AI Analyzing Jobs...
                     </>
                   ) : (
                     <>
@@ -497,10 +510,11 @@ export default function AiSearchPage() {
         </Alert>
       )}
       
-      {isFetchingJobs && !error && (
+      {/* Separate loading indicator for job fetching phase can be kept if desired, or merged visual */}
+      {isFetchingJobs && !isLoading && !error && ( // Show only if fetching jobs AND not yet in AI analysis phase
          <div className="flex justify-center items-center py-10">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          <p className="ml-3 text-md text-muted-foreground">Fetching live job listings for AI analysis...</p>
+          <p className="ml-3 text-md text-muted-foreground">Fetching live job listings for AI...</p>
         </div>
       )}
 
@@ -542,7 +556,7 @@ export default function AiSearchPage() {
            <AlertTriangle className="h-4 w-4" />
            <AlertTitle>No Specific AI Matches Found</AlertTitle>
            <AlertDescription>
-             Our AI couldn&apos;t find specific job matches from the fetched live listings based on your input. You might want to try refining your skills, adjusting location filters, or browse all jobs on the main page.
+             Our AI couldn&apos;t find specific job matches from the fetched live listings based on your input. This could be because the initial API job fetch didn&apos;t return suitable candidates for the AI, or the AI couldn&apos;t find a good match. You might want to try refining your skills, adjusting location filters, or browse all jobs on the main page.
            </AlertDescription>
          </Alert>
        )}
@@ -550,3 +564,4 @@ export default function AiSearchPage() {
   );
 }
 
+    
