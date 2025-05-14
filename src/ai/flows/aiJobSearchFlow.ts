@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview AI-powered job search flow.
@@ -21,9 +22,9 @@ const DetailedLocationSchema = z.object({
 const AiJobSearchInputSchema = z.object({
   skills: z.string().min(1).describe("A comma-separated list or natural language description of the user's skills."),
   resumeDataUri: z.string().optional().describe("The user's resume as a data URI (e.g., 'data:application/pdf;base64,...') that must include a MIME type and use Base64 encoding. Optional."),
-  availableJobs: z.array(JobSchema).describe("A list of available jobs to consider for recommendations."),
-  location: z.string().optional().describe("General preferred job location (e.g., from a dropdown: 'New York, NY', 'Remote'). Optional."),
-  detailedLocation: DetailedLocationSchema.describe("Specific preferred job location details. Optional."),
+  availableJobs: z.array(JobSchema).describe("A list of available jobs to consider for recommendations. These jobs can be from anywhere in the world."),
+  location: z.string().optional().describe("General preferred job location (e.g., from a dropdown: 'New York, NY, USA', 'Remote (Global)', 'London, UK'). This can be a city, country, or remote specification. Optional."),
+  detailedLocation: DetailedLocationSchema.describe("Specific preferred job location details (country, state, city, area). Optional. If provided, these should be prioritized."),
   jobType: JobTypeSchema.optional().describe("Preferred job type (e.g., Full-time, Part-time). Optional."),
   githubUrl: z.string().url().optional().describe("Link to the user's GitHub profile. Optional."),
 });
@@ -47,7 +48,7 @@ const jobSearchPrompt = ai.definePrompt({
   name: 'aiJobSearchPrompt',
   input: { schema: AiJobSearchInputSchema },
   output: { schema: AiJobSearchOutputSchema },
-  prompt: `You are an expert career advisor and job matching AI. Your task is to analyze the user's inputs, then recommend the most suitable jobs from the provided list of available jobs.
+  prompt: `You are an expert global career advisor and job matching AI. Your task is to analyze the user's inputs, then recommend the most suitable jobs from the provided list of available jobs, which can be from anywhere in the world.
 
 User's Skills:
 {{{skills}}}
@@ -61,22 +62,22 @@ User's Resume: Not provided.
 
 Location Preferences:
 {{#if detailedLocation}}
-  Preferred Detailed Location:
+  Specific Preferred Location Details (Prioritize these heavily if provided):
   {{#if detailedLocation.country}}Country: {{{detailedLocation.country}}}{{/if}}
   {{#if detailedLocation.state}}State/Region: {{{detailedLocation.state}}}{{/if}}
   {{#if detailedLocation.city}}City/District: {{{detailedLocation.city}}}{{/if}}
   {{#if detailedLocation.area}}Specific Area: {{{detailedLocation.area}}}{{/if}}
-  (Prioritize jobs matching these specific details if provided. Also consider the general 'Preferred Location' below if it offers additional context like 'Remote'.)
-{{/if}}
-{{#if location}}
-General Preferred Location (from dropdown): {{{location}}}
-(If 'detailedLocation' is provided, this acts as a secondary preference or for broader context like 'Remote'. If 'detailedLocation' is not provided, use this general location.)
-{{else}}
-{{#unless detailedLocation}}
-Preferred Location: Any (No specific preference provided).
-{{/unless}}
+  (If these details are given, jobs matching them, especially at the city/area level, are strong candidates. The general 'location' field below can provide broader context like 'Remote' or a fallback if no specific details match.)
 {{/if}}
 
+{{#if location}}
+General Preferred Location (from dropdown, e.g., 'New York, NY, USA', 'Remote (Global)', 'London, UK'): {{{location}}}
+(Use this for matching if 'detailedLocation' is not provided. If 'detailedLocation' IS provided, this general location can offer additional context, such as confirming a 'Remote' preference or indicating a broader region if very specific matches are scarce. If this field says 'Remote (Global)' or similar, prioritize remote jobs irrespective of other location details unless specified otherwise.)
+{{else}}
+{{#unless detailedLocation}}
+Preferred Location: Any (No specific preference provided. Consider all available jobs globally, focusing on skill match).
+{{/unless}}
+{{/if}}
 
 {{#if jobType}}
 Preferred Job Type: {{{jobType}}}
@@ -87,7 +88,7 @@ User's GitHub Profile: {{{githubUrl}}}
 (When analyzing, consider repositories for relevant skills and project experience if the profile is provided. For example, look for projects using specific programming languages, frameworks, or demonstrating problem-solving abilities.)
 {{/if}}
 
-Available Jobs (Title, Company, Description, Location, Type, Salary - ID is for your reference to return):
+Available Jobs (Title, Company, Description, Location (this can be very specific or general, e.g. "Berlin, Germany" or "Remote (USA)" or "APAC Region"), Type, Salary - ID is for your reference to return):
 {{#each availableJobs}}
 Job ID: {{this.id}}
 Title: {{this.title}}
@@ -100,11 +101,12 @@ Type: {{this.type}}
 {{/each}}
 
 Based on all user inputs (skills, resume, GitHub, job type, and location preferences), identify the top 3-5 most relevant jobs from the "Available Jobs" list.
-Location Matching:
+Global Location Matching Logic:
 - If 'detailedLocation' (country, state, city, area) is provided, strive to match jobs as closely as possible to these specifics. A job in the exact city or area is a strong match. A job in the same state/country is a good match.
-- If only the general 'location' (e.g., "New York, NY", "Remote") is provided, use that for matching.
-- If "Remote" is specified in either general or detailed location context, prioritize remote jobs. If detailed location specifies a country/state for remote work, consider that.
-- If a job's location is a general city (e.g., "New York, NY") and the user specifies a detailed area within that city, consider it a match.
+- If only the general 'location' (e.g., "London, UK", "Remote (Global)", "USA") is provided, use that for matching.
+- If "Remote" is specified (e.g., "Remote (Global)", "Remote (USA preferred)"), prioritize remote jobs. If the remote specification includes a region/country, consider that.
+- If no location preferences are given ('Any'), match jobs globally based primarily on skills and other criteria.
+- Be flexible with job location strings; they might be "City, Country", "City, State, Country", "Country", or "Remote (Region)".
 
 Prioritize overall relevance based on skills and experience first, then filter/rank by location and other preferences.
 For each recommended job, you MUST provide its 'jobId' from the "Available Jobs" list and a concise 1-2 sentence 'reason' explaining why it's a strong match for the user considering all their inputs.
@@ -138,6 +140,11 @@ const aiJobSearchFlow = ai.defineFlow(
     if (validRecommendations.length !== output.recommendations.length) {
         console.warn("AI job search flow: Some recommended jobIds were not found in the available jobs list and were filtered out.");
     }
+    
+    if (input.availableJobs.length > 0 && validRecommendations.length === 0) {
+        console.log("AI job search flow: No recommendations were made by the AI from the available jobs.");
+    }
+
 
     return { recommendations: validRecommendations };
   }

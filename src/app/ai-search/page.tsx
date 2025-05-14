@@ -159,6 +159,7 @@ export default function AiSearchPage() {
     }
 
     try {
+      // Using the expanded mockJobs which now contains more global data
       const availableJobs = mockJobs.map(job => ({
         ...job,
         equity: job.equity === undefined ? undefined : Boolean(job.equity), 
@@ -176,8 +177,8 @@ export default function AiSearchPage() {
       const result: AiJobSearchOutput = await aiJobSearch({
         skills: data.skills,
         resumeDataUri: resumeDataUri,
-        availableJobs: availableJobs,
-        location: data.location || undefined,
+        availableJobs: availableJobs, // This list is now more global
+        location: data.location || undefined, // General location (e.g., "Remote (Global)", "London, UK")
         detailedLocation: isDetailedLocationProvided ? detailedLocation : undefined,
         jobType: data.jobType ? data.jobType as JobType : undefined,
         githubUrl: data.githubUrl || undefined,
@@ -195,7 +196,7 @@ export default function AiSearchPage() {
         setRecommendedJobsDisplay([]);
         toast({
             title: "No specific matches found",
-            description: "The AI couldn't find specific job matches based on your input. Try refining your skills or browse all jobs.",
+            description: "The AI couldn't find specific job matches for your criteria. Try broadening your search or browse all jobs.",
             variant: "default",
         });
       }
@@ -218,10 +219,10 @@ export default function AiSearchPage() {
         <CardHeader>
           <div className="flex items-center gap-3 mb-2">
             <Wand2 className="h-8 w-8 text-primary" />
-            <CardTitle className="text-3xl">AI Powered Job Search</CardTitle>
+            <CardTitle className="text-3xl">AI Powered Global Job Search</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Tell us about your skills, preferences, and optionally upload your resume or GitHub. Our AI will help you find the most relevant jobs.
+            Describe your skills, location preferences (global options available), and optionally upload your resume or GitHub. Our AI will help find relevant jobs from around the world.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -235,7 +236,7 @@ export default function AiSearchPage() {
                     <FormLabel className="text-lg">Your Skills</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="e.g., JavaScript, React, Node.js, Project Management, Agile, UI/UX Design..."
+                        placeholder="e.g., JavaScript, React, Node.js, Project Management, Agile, UI/UX Design, Python, Machine Learning..."
                         className="min-h-[100px] text-base"
                         {...field}
                       />
@@ -279,7 +280,7 @@ export default function AiSearchPage() {
               <div className="space-y-2">
                 <p className="text-lg font-medium">Location Preferences (Optional)</p>
                 <FormDescriptionComponent>
-                  You can use the general location dropdown or provide more specific details below.
+                  Use the general location dropdown for broad areas (including global/remote) or provide specific details below for a more targeted search.
                 </FormDescriptionComponent>
               </div>
 
@@ -295,7 +296,7 @@ export default function AiSearchPage() {
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select general preferred location" />
+                            <SelectValue placeholder="Select general preferred location (e.g., Remote, Country, City)" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -319,7 +320,7 @@ export default function AiSearchPage() {
                     <FormItem>
                       <FormLabel className="text-md flex items-center gap-1"><Globe className="h-4 w-4" />Country</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., USA, United Kingdom" {...field} value={field.value || ''} />
+                        <Input placeholder="e.g., USA, United Kingdom, India" {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -332,7 +333,7 @@ export default function AiSearchPage() {
                     <FormItem>
                       <FormLabel className="text-md flex items-center gap-1"><Building className="h-4 w-4" />State/Province/Region</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., California, Ontario" {...field} value={field.value || ''} />
+                        <Input placeholder="e.g., California, Ontario, Bavaria" {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -345,7 +346,7 @@ export default function AiSearchPage() {
                     <FormItem>
                       <FormLabel className="text-md flex items-center gap-1"><Map className="h-4 w-4" />City/District</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., San Francisco, London" {...field} value={field.value || ''} />
+                        <Input placeholder="e.g., San Francisco, London, Bangalore" {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -358,7 +359,7 @@ export default function AiSearchPage() {
                     <FormItem>
                       <FormLabel className="text-md flex items-center gap-1"><Pin className="h-4 w-4" />Specific Area/Neighborhood</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., SoMa, Shoreditch" {...field} value={field.value || ''} />
+                        <Input placeholder="e.g., SoMa, Shoreditch, Koramangala" {...field} value={field.value || ''} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -421,7 +422,7 @@ export default function AiSearchPage() {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Searching...
+                      Searching Globally...
                     </>
                   ) : (
                     <>
@@ -491,10 +492,11 @@ export default function AiSearchPage() {
            <AlertTriangle className="h-4 w-4" />
            <AlertTitle>No Specific Matches Found</AlertTitle>
            <AlertDescription>
-             Our AI couldn&apos;t find specific job matches based on your input. You might want to try refining your skills or browse all jobs.
+             Our AI couldn&apos;t find specific job matches based on your input. You might want to try refining your skills, adjusting location filters, or browse all jobs.
            </AlertDescription>
          </Alert>
        )}
     </div>
   );
 }
+
