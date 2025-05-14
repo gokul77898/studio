@@ -1,6 +1,6 @@
 
 import Link from 'next/link';
-import { Briefcase, Wand2, Lightbulb, FileScan } from 'lucide-react'; // Added FileScan
+import { Briefcase, Wand2, Lightbulb, FileScan, Mail } from 'lucide-react'; // Added Mail for Cover Letter
 
 export function Header() {
   return (
@@ -10,19 +10,23 @@ export function Header() {
           <Briefcase className="h-7 w-7" />
           <h1 className="text-2xl font-semibold">Career Compass</h1>
         </Link>
-        <nav className="flex items-center gap-3 md:gap-5">
-          <Link href="/" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+        <nav className="flex items-center gap-2 md:gap-4 text-xs sm:text-sm">
+          <Link href="/" className="font-medium text-foreground hover:text-primary transition-colors">
             Jobs
           </Link>
-          <Link href="/ai-search" className="flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary transition-colors">
+          <Link href="/ai-search" className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors">
             <Wand2 className="h-4 w-4" />
-            AI Search
+            AI&nbsp;Search
           </Link>
-          <Link href="/resume-analyzer" className="flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary transition-colors">
+          <Link href="/resume-analyzer" className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors">
             <FileScan className="h-4 w-4" />
-            Resume AI
+            Resume&nbsp;AI
           </Link>
-          <Link href="/guidance" className="flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary transition-colors">
+          <Link href="/cover-letter-generator" className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors">
+            <Mail className="h-4 w-4" />
+            Cover&nbsp;Letter&nbsp;AI
+          </Link>
+          <Link href="/guidance" className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors">
             <Lightbulb className="h-4 w-4" />
             Guidance
           </Link>
