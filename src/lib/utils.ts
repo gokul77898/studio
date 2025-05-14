@@ -7,21 +7,33 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 const TECH_KEYWORDS = [
-  'software', 'engineer', 'developer', 'programmer', ' ai ', 'artificial intelligence', 
-  'machine learning', 'data scientist', 'data analyst', 'cloud ', 'devops', 'cybersecurity', 
-  'frontend', 'backend', 'full stack', 'web develop', 'mobile develop', ' ux ', ' ui ', 
-  'product manager', // often tech-focused
-  ' it ', 'information technology', 'technical writer', 'qa ', 'quality assurance', 'tester',
-  'database administrator', 'dba', 'network engineer', 'systems administrator', 'solution architect',
-  'technician', // Can be broad, but often tech-related in job contexts
-  'bioinformatics', 'computational', 'robotics', 'firmware', 'embedded system',
-  'blockchain', 'crypto', 'web3', // Added blockchain and related terms
-  'game develop', 'game design', // Added game development
-  'site reliability', 'sre', 'platform engineer', 'security engineer',
-  'systems engineer', 'technical support engineer', 'application support engineer',
-  'technical program manager', 'tpm', 'data engineer', 'analytics engineer',
-  'business intelligence', 'bi developer', 'iot', 'internet of things',
-  'ar/vr', 'augmented reality', 'virtual reality', 'quantum computing' // Added more emerging tech
+  // Software General
+  'software',
+  'engineer', // Often combined with software, e.g., "software engineer"
+  'developer', // e.g., "software developer", "web developer"
+  'programmer',
+  // Full Stack
+  'full stack',
+  'full-stack',
+  // Frontend / Backend (parts of software/full stack)
+  'frontend',
+  'backend',
+  'web develop', // Covers web application software
+  'app develop', // Covers application software
+  // AI - Artificial Intelligence
+  ' ai ', // Space to avoid matching "pair", "train", etc.
+  'artificial intelligence',
+  'deep learning',
+  'natural language processing',
+  'nlp',
+  'computer vision',
+  // ML - Machine Learning
+  'ml ', // Space to avoid matching "html", "xml"
+  'machine learning',
+  // Roles very closely tied to AI/ML project success
+  'data scientist', // Often designs/builds ML models
+  'data engineer',  // Builds data pipelines for ML
+  'algorithm developer', // Generic but often very relevant to software/AI/ML
 ];
 
 export function isTechJob(job: Job): boolean {
@@ -29,7 +41,7 @@ export function isTechJob(job: Job): boolean {
   const descriptionLower = job.description.toLowerCase();
 
   // Check title first for common tech roles
-  if (TECH_KEYWORDS.some(keyword => titleLower.includes(keyword.trim()))) { // .trim() for keywords with spaces
+  if (TECH_KEYWORDS.some(keyword => titleLower.includes(keyword.trim()))) {
     return true;
   }
 
@@ -37,22 +49,26 @@ export function isTechJob(job: Job): boolean {
   if (TECH_KEYWORDS.some(keyword => descriptionLower.includes(keyword.trim()))) {
     // Avoid overly broad matches for "manager" or "analyst" if only found in description
     // and not clearly tech-related in title.
-    const nonSpecificManagerOrAnalyst = (titleLower.includes('manager') || titleLower.includes('analyst')) && 
+    const nonSpecificManagerOrAnalyst = (titleLower.includes('manager') || titleLower.includes('analyst')) &&
                                         !TECH_KEYWORDS.some(kw => titleLower.includes(kw.trim()));
 
     if (nonSpecificManagerOrAnalyst) {
         // If "manager" or "analyst" is in title without other tech keywords,
-        // require stronger tech signals in the description
-        if (descriptionLower.includes('software') || 
-            descriptionLower.includes('technology') || 
-            descriptionLower.includes(' saas') ||
-            descriptionLower.includes('technical team') ||
-            descriptionLower.includes('data-driven') ||
-            descriptionLower.includes(' agile ') ||
-            descriptionLower.includes(' it ')) {
+        // require stronger tech signals in the description related to software, AI, ML.
+        if (descriptionLower.includes('software') ||
+            descriptionLower.includes(' ai ') ||
+            descriptionLower.includes('artificial intelligence') ||
+            descriptionLower.includes('ml ') ||
+            descriptionLower.includes('machine learning') ||
+            descriptionLower.includes('full stack') ||
+            descriptionLower.includes('frontend') ||
+            descriptionLower.includes('backend') ||
+            descriptionLower.includes('data-driven platform') ||
+            descriptionLower.includes('technical team lead') ||
+            descriptionLower.includes('development lifecycle')) {
             return true;
         }
-        return false; 
+        return false;
     }
     return true;
   }
