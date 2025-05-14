@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormDescription as FormDescriptionComponent, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, AlertTriangle, Briefcase, UploadCloud, MapPin, BriefcaseBusiness, Github, Globe, Building, Map, Pin, XCircle } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, Briefcase, UploadCloud, MapPin, BriefcaseBusiness, Github, Globe, Building, Map, Pin, XCircle, CheckCircle2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { JobCard } from '@/components/JobCard';
 import type { Job, JobType } from '@/types';
@@ -85,6 +85,7 @@ export default function AiSearchPage() {
   const [error, setError] = useState<string | null>(null);
   const [recommendedJobsDisplay, setRecommendedJobsDisplay] = useState<RecommendedJobDisplay[]>([]);
   const [savedJobIds, setSavedJobIds] = useLocalStorage<string[]>('savedJobIds', []);
+  const [appliedJobIds, setAppliedJobIds] = useLocalStorage<string[]>('appliedJobIds', []);
   const { toast } = useToast();
 
   const form = useForm<AiSearchFormValues>({
@@ -109,11 +110,29 @@ export default function AiSearchPage() {
     }
   };
 
+  const handleToggleAppliedStatus = (jobId: string) => {
+    const isCurrentlyApplied = appliedJobIds.includes(jobId);
+    if (isCurrentlyApplied) {
+      setAppliedJobIds(appliedJobIds.filter(id => id !== jobId));
+      toast({
+        title: "Marked as Not Applied",
+        description: "The job's application status has been updated.",
+      });
+    } else {
+      setAppliedJobIds([...appliedJobIds, jobId]);
+      toast({
+        title: "Marked as Applied!",
+        description: "Great job! This job is now marked as applied.",
+        variant: "default",
+        icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
+      });
+    }
+  };
+
   const handleClearFilters = () => {
     form.reset(defaultFormValues);
     setRecommendedJobsDisplay([]);
     setError(null);
-    // Optionally, notify user
     toast({
       title: "Filters Cleared",
       description: "All search criteria have been reset.",
@@ -448,6 +467,8 @@ export default function AiSearchPage() {
                   job={item}
                   isSaved={savedJobIds.includes(item.id)}
                   onSaveToggle={handleSaveToggle}
+                  isApplied={appliedJobIds.includes(item.id)}
+                  onToggleApplied={handleToggleAppliedStatus}
                 />
                 <Card className="bg-accent/10 border-accent/30 shadow">
                   <CardHeader className='pb-2 pt-4'>
@@ -476,6 +497,4 @@ export default function AiSearchPage() {
        )}
     </div>
   );
-
 }
-

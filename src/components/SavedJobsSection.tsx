@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Job } from '@/types';
@@ -8,9 +9,11 @@ import { BookMarked, Info } from 'lucide-react';
 interface SavedJobsSectionProps {
   savedJobs: Job[];
   onSaveToggle: (jobId: string) => void;
+  appliedJobIds: string[]; // Added appliedJobIds
+  onToggleApplied: (jobId: string) => void; // Added onToggleApplied
 }
 
-export function SavedJobsSection({ savedJobs, onSaveToggle }: SavedJobsSectionProps) {
+export function SavedJobsSection({ savedJobs, onSaveToggle, appliedJobIds, onToggleApplied }: SavedJobsSectionProps) {
   if (savedJobs.length === 0) {
     return (
       <Card className="mt-10 shadow-md">
@@ -39,7 +42,14 @@ export function SavedJobsSection({ savedJobs, onSaveToggle }: SavedJobsSectionPr
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {savedJobs.map((job) => (
-          <JobCard key={job.id} job={job} isSaved={true} onSaveToggle={onSaveToggle} />
+          <JobCard 
+            key={job.id} 
+            job={job} 
+            isSaved={true} 
+            onSaveToggle={onSaveToggle}
+            isApplied={appliedJobIds.includes(job.id)} // Pass isApplied
+            onToggleApplied={onToggleApplied} // Pass onToggleApplied
+          />
         ))}
       </div>
     </section>

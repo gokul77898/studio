@@ -1,14 +1,15 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { Job, FilterCriteria, JobType } from '@/types';
+import type { Job, FilterCriteria } from '@/types';
 import { mockJobs } from '@/data/mockJobs';
 import { JobCard } from '@/components/JobCard';
 import { JobFilters } from '@/components/JobFilters';
 import { SavedJobsSection } from '@/components/SavedJobsSection';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2 } from 'lucide-react'; // Added CheckCircle2
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const initialFilters: FilterCriteria = {
@@ -25,6 +26,7 @@ export default function HomePage() {
   const [allJobs, setAllJobs] = useState<Job[]>([]);
   const [filters, setFilters] = useState<FilterCriteria>(initialFilters);
   const [savedJobIds, setSavedJobIds] = useLocalStorage<string[]>('savedJobIds', []);
+  const [appliedJobIds, setAppliedJobIds] = useLocalStorage<string[]>('appliedJobIds', []);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -58,6 +60,25 @@ export default function HomePage() {
     }
   };
 
+  const handleToggleAppliedStatus = (jobId: string) => {
+    const isCurrentlyApplied = appliedJobIds.includes(jobId);
+    if (isCurrentlyApplied) {
+      setAppliedJobIds(appliedJobIds.filter(id => id !== jobId));
+      toast({
+        title: "Marked as Not Applied",
+        description: "The job's application status has been updated.",
+      });
+    } else {
+      setAppliedJobIds([...appliedJobIds, jobId]);
+      toast({
+        title: "Marked as Applied!",
+        description: "Great job! This job is now marked as applied.",
+        variant: "default",
+        icon: <CheckCircle2 className="h-5 w-5 text-green-500" />,
+      });
+    }
+  };
+
   const filteredJobs = useMemo(() => {
     return allJobs.filter(job => {
       const jobLocationLower = job.location.toLowerCase();
@@ -68,12 +89,10 @@ export default function HomePage() {
           job.description.toLowerCase().includes(filters.keyword.toLowerCase())
         : true;
       
-      // General location dropdown filter
       const generalLocationMatch = filters.location && filters.location !== 'All Locations'
         ? jobLocationLower === filters.location.toLowerCase() || (filters.location.toLowerCase() === 'remote' && jobLocationLower === 'remote')
         : true;
 
-      // Detailed location filters
       const countryMatch = filters.country
         ? jobLocationLower.includes(filters.country.toLowerCase())
         : true;
@@ -83,7 +102,6 @@ export default function HomePage() {
       const cityMatch = filters.city
         ? jobLocationLower.includes(filters.city.toLowerCase())
         : true;
-      // Area match might be too specific for job.location strings, but included for completeness
       const areaMatch = filters.area 
         ? jobLocationLower.includes(filters.area.toLowerCase())
         : true;
@@ -92,10 +110,8 @@ export default function HomePage() {
       
       let locationCombinedMatch = generalLocationMatch;
       if (detailedLocationProvided) {
-        // If detailed fields are used, they must ALL match, AND general location (if not 'All Locations')
         locationCombinedMatch = countryMatch && stateMatch && cityMatch && areaMatch && (filters.location === 'All Locations' || filters.location === '' || generalLocationMatch);
       }
-
 
       const jobTypeMatch = filters.jobTypes.length > 0
         ? filters.jobTypes.includes(job.type)
@@ -127,6 +143,8 @@ export default function HomePage() {
                 job={job}
                 isSaved={savedJobIds.includes(job.id)}
                 onSaveToggle={handleSaveToggle}
+                isApplied={appliedJobIds.includes(job.id)}
+                onToggleApplied={handleToggleAppliedStatus}
               />
             ))}
           </div>
@@ -141,7 +159,7 @@ export default function HomePage() {
         </Alert>
       )}
 
-      <SavedJobsSection savedJobs={savedJobs} onSaveToggle={handleSaveToggle} />
+      <SavedJobsSection savedJobs={savedJobs} onSaveToggle={handleSaveToggle} appliedJobIds={appliedJobIds} onToggleApplied={handleToggleAppliedStatus} />
     </div>
   );
 }
