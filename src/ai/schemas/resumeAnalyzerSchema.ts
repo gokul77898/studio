@@ -1,5 +1,4 @@
 
-'use server';
 /**
  * @fileOverview Zod schemas for Resume Analysis AI flow.
  */
