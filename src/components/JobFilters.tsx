@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { FilterCriteria, JobType } from '@/types';
@@ -7,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, ListFilter, XCircle, MapPin, Globe, Building, Map as MapIcon, Pin } from 'lucide-react'; // Renamed Map to MapIcon to avoid conflict
+import { Search, ListFilter, XCircle, MapPin, Globe, Building, Map as MapIcon, Pin, Send } from 'lucide-react';
 import { jobTypes as allJobTypes, locations as allLocations } from '@/data/mockJobs';
 
 
@@ -15,9 +16,11 @@ interface JobFiltersProps {
   filters: FilterCriteria;
   onFilterChange: (filters: FilterCriteria) => void;
   onClearFilters: () => void;
+  onApplyFilters: () => void; // New prop for applying filters (triggering API call)
+  isApplying?: boolean; // Optional prop to disable button while applying
 }
 
-export function JobFilters({ filters, onFilterChange, onClearFilters }: JobFiltersProps) {
+export function JobFilters({ filters, onFilterChange, onClearFilters, onApplyFilters, isApplying }: JobFiltersProps) {
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
     onFilterChange({ ...filters, [name]: value });
@@ -41,6 +44,9 @@ export function JobFilters({ filters, onFilterChange, onClearFilters }: JobFilte
           <ListFilter className="h-5 w-5 text-primary" />
           Filter Jobs
         </CardTitle>
+         <CardDescription className="text-xs">
+            Modify filters and click &quot;Apply Filters&quot; to search live job listings.
+         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
@@ -148,10 +154,14 @@ export function JobFilters({ filters, onFilterChange, onClearFilters }: JobFilte
           </div>
         </div>
 
-        <div className="flex justify-end pt-4">
-          <Button onClick={onClearFilters} variant="outline" className="w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
+          <Button onClick={onClearFilters} variant="outline" className="w-full sm:w-auto" disabled={isApplying}>
             <XCircle className="mr-2 h-4 w-4" />
             Clear All Filters
+          </Button>
+          <Button onClick={onApplyFilters} className="w-full sm:w-auto" disabled={isApplying}>
+            {isApplying ? <Search className="mr-2 h-4 w-4 animate-ping" /> : <Send className="mr-2 h-4 w-4" /> }
+            {isApplying ? 'Searching...' : 'Apply Filters & Search'}
           </Button>
         </div>
       </CardContent>

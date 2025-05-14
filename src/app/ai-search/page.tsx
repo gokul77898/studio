@@ -16,7 +16,9 @@ import { Loader2, Wand2, AlertTriangle, Briefcase, UploadCloud, MapPin, Briefcas
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { JobCard } from '@/components/JobCard';
 import type { Job, JobType } from '@/types';
-import { mockJobs, jobTypes as allJobTypes, locations as allLocations } from '@/data/mockJobs';
+// import { mockJobs } from '@/data/mockJobs'; // Replaced with real-time fetching
+import { jobTypes as allJobTypes, locations as allLocations } from '@/data/mockJobs'; // Keep these for filter options
+import { fetchRealTimeJobs } from '@/services/jobSearchService';
 import { aiJobSearch, type AiJobSearchOutput } from '@/ai/flows/aiJobSearchFlow';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import { useToast } from "@/hooks/use-toast";
@@ -82,8 +84,10 @@ const defaultFormValues: AiSearchFormValues = {
 
 export default function AiSearchPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingJobs, setIsFetchingJobs] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recommendedJobsDisplay, setRecommendedJobsDisplay] = useState<RecommendedJobDisplay[]>([]);
+  const [fetchedJobsForAI, setFetchedJobsForAI] = useState<Job[]>([]); // Store jobs fetched for AI
   const [savedJobIds, setSavedJobIds] = useLocalStorage<string[]>('savedJobIds', []);
   const [appliedJobIds, setAppliedJobIds] = useLocalStorage<string[]>('appliedJobIds', []);
   const { toast } = useToast();
@@ -132,6 +136,7 @@ export default function AiSearchPage() {
   const handleClearFilters = () => {
     form.reset(defaultFormValues);
     setRecommendedJobsDisplay([]);
+    setFetchedJobsForAI([]);
     setError(null);
     toast({
       title: "Filters Cleared",
@@ -142,6 +147,7 @@ export default function AiSearchPage() {
 
   const onSubmit: SubmitHandler<AiSearchFormValues> = async (data) => {
     setIsLoading(true);
+    setIsFetchingJobs(true);
     setError(null);
     setRecommendedJobsDisplay([]);
 
@@ -154,16 +160,41 @@ export default function AiSearchPage() {
         setError('Failed to process resume file. Please try a different file or skip.');
         form.setError("resumeFile", { type: "manual", message: "Could not process file." });
         setIsLoading(false);
+        setIsFetchingJobs(false);
         return;
       }
     }
 
     try {
-      // Using the expanded mockJobs which now contains more global data
-      const availableJobs = mockJobs.map(job => ({
-        ...job,
-        equity: job.equity === undefined ? undefined : Boolean(job.equity), 
-      }));
+      // Fetch jobs from the real-time service based on form inputs
+      // This example fetches a broad set of jobs; you might refine this
+      // to pass more specific filters if your API and AI flow are designed for it.
+      const filterCriteriaForFetch: Pick<AiSearchFormValues, "keyword" | "location" | "country" | "state" | "city" | "area" | "jobType"> & { jobTypes?: JobType[] } = {
+        keyword: data.skills, // Use skills as keyword for initial fetch
+        location: data.location,
+        country: data.country,
+        state: data.state,
+        city: data.city,
+        area: data.area,
+        jobType: data.jobType,
+        jobTypes: data.jobType ? [data.jobType as JobType] : []
+      };
+      
+      const fetchedJobs = await fetchRealTimeJobs(filterCriteriaForFetch, 100); // Fetch up to 100 jobs for AI to parse
+      setFetchedJobsForAI(fetchedJobs); // Store them for display or re-use
+      setIsFetchingJobs(false);
+
+
+      if (fetchedJobs.length === 0) {
+        toast({
+            title: "No Jobs Found by API",
+            description: "The initial job fetch returned no results. AI search cannot proceed. Try broader criteria for fetching jobs.",
+            variant: "default",
+        });
+        setIsLoading(false);
+        return;
+      }
+
 
       const detailedLocation = {
         country: data.country || undefined,
@@ -177,8 +208,11 @@ export default function AiSearchPage() {
       const result: AiJobSearchOutput = await aiJobSearch({
         skills: data.skills,
         resumeDataUri: resumeDataUri,
-        availableJobs: availableJobs, // This list is now more global
-        location: data.location || undefined, // General location (e.g., "Remote (Global)", "London, UK")
+        availableJobs: fetchedJobs.map(job => ({ // Ensure equity is boolean or undefined
+            ...job,
+            equity: job.equity === undefined ? undefined : Boolean(job.equity),
+        })),
+        location: data.location || undefined,
         detailedLocation: isDetailedLocationProvided ? detailedLocation : undefined,
         jobType: data.jobType ? data.jobType as JobType : undefined,
         githubUrl: data.githubUrl || undefined,
@@ -187,7 +221,8 @@ export default function AiSearchPage() {
       if (result.recommendations && result.recommendations.length > 0) {
         const detailedRecommendations: RecommendedJobDisplay[] = result.recommendations
           .map(rec => {
-            const jobDetails = mockJobs.find(job => job.id === rec.jobId);
+            // Find job from the list we provided to the AI
+            const jobDetails = fetchedJobs.find(job => job.id === rec.jobId);
             return jobDetails ? { ...jobDetails, reason: rec.reason } : null;
           })
           .filter((job): job is RecommendedJobDisplay => job !== null);
@@ -195,21 +230,23 @@ export default function AiSearchPage() {
       } else {
         setRecommendedJobsDisplay([]);
         toast({
-            title: "No specific matches found",
-            description: "The AI couldn't find specific job matches for your criteria. Try broadening your search or browse all jobs.",
+            title: "No specific matches found by AI",
+            description: "The AI couldn't find specific job matches from the fetched jobs. Try broadening your search criteria.",
             variant: "default",
         });
       }
     } catch (e) {
       console.error(e);
-      setError('An error occurred while searching for jobs. Please try again.');
+      const errorMessage = e instanceof Error ? e.message : 'An error occurred while searching for jobs.';
+      setError(errorMessage + " You might need to configure the job search API in `src/services/jobSearchService.ts` and set the API key in your `.env` file.");
       toast({
         title: "Search Error",
-        description: "An unexpected error occurred. Please check your connection or try again later.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
+      setIsFetchingJobs(false);
     }
   };
 
@@ -222,7 +259,7 @@ export default function AiSearchPage() {
             <CardTitle className="text-3xl">AI Powered Global Job Search</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Describe your skills, location preferences (global options available), and optionally upload your resume or GitHub. Our AI will help find relevant jobs from around the world.
+            Describe your skills, preferences, and optionally upload your resume or GitHub. Our AI will search live job listings to find relevant jobs from around the world.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -233,7 +270,7 @@ export default function AiSearchPage() {
                 name="skills"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-lg">Your Skills</FormLabel>
+                    <FormLabel className="text-lg">Your Skills & Keywords</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder="e.g., JavaScript, React, Node.js, Project Management, Agile, UI/UX Design, Python, Machine Learning..."
@@ -241,7 +278,7 @@ export default function AiSearchPage() {
                         {...field}
                       />
                     </FormControl>
-                    <FormDescriptionComponent>Describe your technical and soft skills. Example: React, Next.js, Tailwind CSS, Firebase, UI design</FormDescriptionComponent>
+                    <FormDescriptionComponent>This will also be used as keywords for the initial job fetch. Example: React, Next.js, Tailwind CSS, Firebase, UI design</FormDescriptionComponent>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -418,11 +455,16 @@ export default function AiSearchPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4 pt-2">
-                <Button type="submit" disabled={isLoading} className="w-full sm:w-auto text-lg py-6 px-8">
-                  {isLoading ? (
+                <Button type="submit" disabled={isLoading || isFetchingJobs} className="w-full sm:w-auto text-lg py-6 px-8">
+                  {isFetchingJobs ? (
+                     <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Fetching Live Jobs...
+                    </>
+                  ) : isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Searching Globally...
+                      AI Analyzing...
                     </>
                   ) : (
                     <>
@@ -436,7 +478,7 @@ export default function AiSearchPage() {
                   variant="outline" 
                   onClick={handleClearFilters} 
                   className="w-full sm:w-auto text-lg py-6 px-8"
-                  disabled={isLoading}
+                  disabled={isLoading || isFetchingJobs}
                 >
                   <XCircle className="mr-2 h-5 w-5" />
                   Clear All Filters
@@ -454,8 +496,16 @@ export default function AiSearchPage() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+      
+      {isFetchingJobs && !error && (
+         <div className="flex justify-center items-center py-10">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="ml-3 text-md text-muted-foreground">Fetching live job listings for AI analysis...</p>
+        </div>
+      )}
 
-      {!isLoading && recommendedJobsDisplay.length > 0 && (
+
+      {!isLoading && !isFetchingJobs && recommendedJobsDisplay.length > 0 && (
         <div>
           <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
             <Briefcase className="h-7 w-7 text-primary" />
@@ -487,12 +537,12 @@ export default function AiSearchPage() {
           </div>
         </div>
       )}
-       {!isLoading && !error && form.formState.isSubmitted && recommendedJobsDisplay.length === 0 && (
+       {!isLoading && !isFetchingJobs && !error && form.formState.isSubmitted && recommendedJobsDisplay.length === 0 && (
          <Alert variant="default" className="shadow-md">
            <AlertTriangle className="h-4 w-4" />
-           <AlertTitle>No Specific Matches Found</AlertTitle>
+           <AlertTitle>No Specific AI Matches Found</AlertTitle>
            <AlertDescription>
-             Our AI couldn&apos;t find specific job matches based on your input. You might want to try refining your skills, adjusting location filters, or browse all jobs.
+             Our AI couldn&apos;t find specific job matches from the fetched live listings based on your input. You might want to try refining your skills, adjusting location filters, or browse all jobs on the main page.
            </AlertDescription>
          </Alert>
        )}
