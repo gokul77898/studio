@@ -19,6 +19,7 @@ import { analyzeResume, type ResumeAnalysisOutput, type ResumeAnalysisInput } fr
 import { generateResume, type GenerateResumeOutput, type GenerateResumeInput } from '@/ai/flows/generateResumeFlow';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { cn } from "@/lib/utils"; // Added import for cn
 
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB for resumes
