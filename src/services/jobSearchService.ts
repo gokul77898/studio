@@ -6,7 +6,7 @@ import type { Job, FilterCriteria, JobType } from '@/types';
 // This service is pre-configured for JSearch API (available on RapidAPI).
 // 1. GET YOUR JSEARCH API KEY:
 //    - Go to RapidAPI: https://rapidapi.com/
-//    - Search for "JSearch" API and subscribe (e.g., to the free tier).
+//    - Search for "JSearch" API (e.g., by letscrape) and subscribe (e.g., to the free tier).
 //    - Find your 'X-RapidAPI-Key' on the API's "Endpoints" page.
 // 2. SET API KEY IN .env:
 //    - Open your .env file in the project root.
@@ -65,7 +65,7 @@ function formatSalary(apiJob: ApiJobResponseItem): string | undefined {
   let period = '';
   if (apiJob.job_salary_period) {
       const p = apiJob.job_salary_period.toLowerCase();
-      if (p !== 'yearly' && p !== 'annum') { // Only add period if not yearly, as yearly is often implied
+      if (p !== 'yearly' && p !== 'annum' && p!== 'year') { // Only add period if not yearly, as yearly is often implied
         period = ` per ${p.replace('ly', '')}`; // hourly -> hour
       }
   }
@@ -73,8 +73,8 @@ function formatSalary(apiJob: ApiJobResponseItem): string | undefined {
   if (apiJob.job_min_salary && apiJob.job_max_salary) {
     return `${formatNumber(apiJob.job_min_salary)} - ${formatNumber(apiJob.job_max_salary)} ${currency}${period}`;
   }
-  if (apiJob.job_min_salary) return `${formatNumber(apiJob.job_min_salary)} ${currency}${period}`;
-  if (apiJob.job_max_salary) return `${formatNumber(apiJob.job_max_salary)} ${currency}${period}`;
+  if (apiJob.job_min_salary) return `From ${formatNumber(apiJob.job_min_salary)} ${currency}${period}`;
+  if (apiJob.job_max_salary) return `Up to ${formatNumber(apiJob.job_max_salary)} ${currency}${period}`;
   return undefined;
 }
 
@@ -101,60 +101,61 @@ export async function fetchRealTimeJobs(filters: FilterCriteria, limit: number =
     console.warn("Returning empty job list. Configure API key for real job data.");
     return [];
   }
-   if (API_BASE_URL === 'https://jsearch.p.rapidapi.com' && API_HOST === 'jsearch.p.rapidapi.com' && (API_KEY === 'your_actual_api_key_here' || !API_KEY)) { // Redundant check, but safe
-     console.warn('Using placeholder API URL/Host or missing API Key for JSearch. Please configure `JOB_SEARCH_API_KEY` in .env for real job data. Service will return empty array.');
+   if (API_BASE_URL === 'https://jsearch.p.rapidapi.com' && API_HOST === 'jsearch.p.rapidapi.com' && (API_KEY === 'your_actual_api_key_here')) { 
+     console.warn('Using placeholder API Key for JSearch. Please configure `JOB_SEARCH_API_KEY` in .env for real job data. Service will return empty array.');
      return [];
   }
 
   let queryParts = [];
-  if (filters.keyword) queryParts.push(filters.keyword);
+  if (filters.keyword && filters.keyword.trim() !== '') {
+    queryParts.push(filters.keyword.trim());
+  }
   
-  let locationQuery = "";
+  let locationString = "";
   // Prioritize detailed location fields if provided
-  if (filters.area) locationQuery = `${filters.area}`;
-  if (filters.city) locationQuery = `${filters.city}${filters.area ? `, ${filters.area}` : ''}`;
-  if (filters.state) locationQuery = `${filters.state}${filters.city ? `, ${filters.city}` : ''}${filters.area ? `, ${filters.area}` : ''}`;
-  if (filters.country) locationQuery = `${filters.country}${filters.state ? `, ${filters.state}` : ''}${filters.city ? `, ${filters.city}` : ''}${filters.area ? `, ${filters.area}` : ''}`;
+  if (filters.area) locationString = `${filters.area}`;
+  if (filters.city) locationString = `${filters.city}${filters.area ? `, ${filters.area}` : ''}`;
+  if (filters.state) locationString = `${filters.state}${filters.city ? `, ${filters.city}` : ''}${filters.area ? `, ${filters.area}` : ''}`;
+  if (filters.country) locationString = `${filters.country}${filters.state ? `, ${filters.state}` : ''}${filters.city ? `, ${filters.city}` : ''}${filters.area ? `, ${filters.area}` : ''}`;
   
-  if (!locationQuery || filters.location?.toLowerCase().includes('remote')) {
+  // Use general location if no detailed fields, or if general location is explicitly "Remote..."
+  if (!locationString || filters.location?.toLowerCase().includes('remote')) {
     if (filters.location && filters.location !== 'All Locations' && filters.location.toLowerCase() !== 'worldwide') {
-        locationQuery = filters.location; 
+        locationString = filters.location; 
     }
   }
   
-  if (locationQuery && locationQuery.toLowerCase() !== 'worldwide' && locationQuery.toLowerCase() !== 'all locations' && !locationQuery.toLowerCase().includes('remote (global)')) {
-      queryParts.push(locationQuery); // JSearch query format often "keyword location" e.g. "React Developer New York"
+  if (locationString && locationString.toLowerCase() !== 'worldwide' && locationString.toLowerCase() !== 'all locations' && !locationString.toLowerCase().includes('remote (global)')) {
+      queryParts.push(`in ${locationString}`); 
   }
   
-  const query = queryParts.join(' ') || 'Software Developer Worldwide'; // Default if query is empty
+  // Default query if no keywords or specific location is provided
+  const query = queryParts.join(' ') || 'latest jobs worldwide';
 
 
   const queryParams = new URLSearchParams({
     query: query,
     page: '1',
-    num_pages: '1', // JSearch usually returns ~40 results per page with num_pages=1. Adjust if more needed.
+    num_pages: '1', 
     date_posted: 'month', // Fetch jobs posted in the last month by default
   });
 
   if (filters.jobTypes && filters.jobTypes.length > 0) {
-    // JSearch expects comma-separated, uppercase employment types
+    // JSearch expects comma-separated, uppercase employment types without dashes
     const apiJobTypes = filters.jobTypes.map(jt => {
-        switch(jt) {
+        switch(jt) { // Map to JSearch expected values more explicitly
             case 'Full-time': return 'FULLTIME';
             case 'Part-time': return 'PARTTIME';
             case 'Contract': return 'CONTRACTOR';
             case 'Internship': return 'INTERN';
-            default: return jt.toUpperCase().replace(' ', '_'); // Fallback
+            default: return jt.toUpperCase().replace(/[\s-]/g, ''); // Fallback, remove spaces and dashes
         }
     }).join(',');
     queryParams.append('employment_types', apiJobTypes);
   }
 
-  if (locationQuery.toLowerCase().includes('remote (usa only)')) {
-    queryParams.append('remote_jobs_only', 'true');
-    // JSearch doesn't have a direct filter for "remote USA only" in a single param usually.
-    // The query "Remote USA" is often the best bet. The locationQuery part already adds "Remote (USA Only)".
-  } else if (locationQuery.toLowerCase().includes('remote')) {
+  // Handle remote job filtering more specifically for JSearch
+  if (filters.location?.toLowerCase().includes('remote')) {
      queryParams.append('remote_jobs_only', 'true');
   }
 
@@ -162,7 +163,7 @@ export async function fetchRealTimeJobs(filters: FilterCriteria, limit: number =
   const endpoint = `${API_BASE_URL}/search`;
 
   try {
-    console.log(`Fetching jobs from JSearch: ${endpoint} with query: ${queryParams.toString()}`);
+    console.log(`Fetching jobs from JSearch: ${endpoint} with query params: ${queryParams.toString()}`);
     const response = await fetch(`${endpoint}?${queryParams.toString()}`, {
       method: 'GET',
       headers: {
@@ -186,25 +187,33 @@ export async function fetchRealTimeJobs(filters: FilterCriteria, limit: number =
       return [];
     }
 
-    return apiJobs.slice(0, limit).map((apiJob): Job => ({
-      id: apiJob.job_id || crypto.randomUUID(),
-      title: apiJob.job_title || 'N/A',
-      company: apiJob.employer_name || 'N/A',
-      description: apiJob.job_description || 'No description available.',
-      location: apiJob.job_is_remote 
-        ? (apiJob.job_city || apiJob.job_state || apiJob.job_country ? `Remote (${apiJob.job_city || ''}${apiJob.job_city && (apiJob.job_state || apiJob.job_country) ? ', ' : ''}${apiJob.job_state || ''}${apiJob.job_state && apiJob.job_country ? ', ' : ''}${apiJob.job_country || ''})`.replace(/\(\s*,*\s*\)/g, '(Global)') : 'Remote (Global)')
-        : `${apiJob.job_city ? apiJob.job_city + ', ' : ''}${apiJob.job_state ? apiJob.job_state + ', ' : ''}${apiJob.job_country || 'Unknown Location'}`,
-      type: mapApiJobType(apiJob.job_employment_type),
-      url: apiJob.job_apply_link || '#',
-      postedDate: getPostedDate(apiJob),
-      salary: formatSalary(apiJob),
-      equity: apiJob.job_highlights?.Benefits?.some(b => typeof b === 'string' && b.toLowerCase().includes('equity')) || false,
-    }));
+    return apiJobs.slice(0, limit).map((apiJob): Job => {
+      let jobLocation = 'Unknown Location';
+      if (apiJob.job_is_remote) {
+        const remoteDetails = [apiJob.job_city, apiJob.job_state, apiJob.job_country].filter(Boolean).join(', ');
+        jobLocation = remoteDetails ? `Remote (${remoteDetails})` : 'Remote (Global)';
+      } else {
+        jobLocation = [apiJob.job_city, apiJob.job_state, apiJob.job_country].filter(Boolean).join(', ') || 'On-site (details N/A)';
+      }
+
+      return {
+        id: apiJob.job_id || crypto.randomUUID(),
+        title: apiJob.job_title || 'N/A',
+        company: apiJob.employer_name || 'N/A',
+        description: apiJob.job_description || 'No description available.',
+        location: jobLocation,
+        type: mapApiJobType(apiJob.job_employment_type),
+        url: apiJob.job_apply_link || '#',
+        postedDate: getPostedDate(apiJob),
+        salary: formatSalary(apiJob),
+        equity: apiJob.job_highlights?.Benefits?.some(b => typeof b === 'string' && b.toLowerCase().includes('equity')) || false,
+      };
+    });
 
   } catch (error) {
     console.error('Error in fetchRealTimeJobs (JSearch):', error);
     if (error instanceof Error && (error.message.includes('API Key is missing') || error.message.includes('JOB_SEARCH_API_KEY is not set'))) {
-      // Already handled, or handle more gracefully
+      // Already handled by the initial check
     } else {
        // Re-throw other errors to be caught by the calling page
        throw error;
@@ -212,5 +221,3 @@ export async function fetchRealTimeJobs(filters: FilterCriteria, limit: number =
     return []; // Fallback to empty array on error
   }
 }
-
-    

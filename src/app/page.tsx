@@ -23,7 +23,7 @@ const initialFilters: FilterCriteria = {
   area: '',
 };
 
-const JOBS_PER_PAGE = 21; // Fetch more jobs for better client-side filtering experience initially
+const JOBS_PER_PAGE = 21; 
 
 export default function HomePage() {
   const [allJobs, setAllJobs] = useState<Job[]>([]);
@@ -38,14 +38,12 @@ export default function HomePage() {
     if (showLoadingIndicator) setIsLoading(true);
     setError(null);
     try {
-      // Pass currentFilters to fetchRealTimeJobs.
-      // The service will construct the appropriate query for the API.
       const jobs = await fetchRealTimeJobs(currentFilters, JOBS_PER_PAGE);
       setAllJobs(jobs);
       if (jobs.length === 0 && (currentFilters.keyword || currentFilters.location || currentFilters.country || currentFilters.city || currentFilters.state || currentFilters.area || currentFilters.jobTypes.length > 0)) {
         toast({
           title: "No Jobs Found",
-          description: "Your search/filter criteria did not match any live job listings. Try broadening your search.",
+          description: "Your search/filter criteria did not match any live job listings. Try broadening your search or check API key.",
           variant: "default",
         });
       }
@@ -58,7 +56,7 @@ export default function HomePage() {
         description: errorMessage,
         variant: "destructive",
       });
-      setAllJobs([]); // Clear jobs on error
+      setAllJobs([]); 
     } finally {
       if (showLoadingIndicator) setIsLoading(false);
     }
@@ -66,14 +64,13 @@ export default function HomePage() {
 
 
   useEffect(() => {
-    // Load initial set of jobs (e.g., generic software developer jobs worldwide)
-    loadJobs({keyword: 'Software Developer', location: 'Worldwide', jobTypes: []});
+    // Load initial set of jobs with generic worldwide search
+    loadJobs({keyword: '', location: 'Worldwide', jobTypes: []});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleFilterChange = (newFilters: FilterCriteria) => {
     setFilters(newFilters);
-    // Filters are applied by the "Apply Filters & Search" button
   };
 
   const handleApplyFilters = () => {
@@ -82,13 +79,13 @@ export default function HomePage() {
 
   const handleClearFilters = () => {
     setFilters(initialFilters);
-    // Optionally, reload with default filters or clear jobs list
-    // loadJobs({keyword: 'Software Developer', location: 'Worldwide', jobTypes: []}); 
-    setAllJobs([]); // Clear current jobs to reflect filter reset
+    setAllJobs([]); 
     toast({
         title: "Filters Cleared",
-        description: "Search filters have been reset. Click 'Apply Filters & Search' for new results.",
+        description: "Search filters have been reset. Click 'Apply Filters & Search' for new results or wait for initial load.",
     });
+    // Optionally, trigger a default load after clearing
+    // loadJobs({keyword: '', location: 'Worldwide', jobTypes: []});
   };
 
   const handleSaveToggle = (jobId: string) => {
@@ -128,55 +125,39 @@ export default function HomePage() {
     }
   };
 
-  // Client-side filtering is still useful for refining results from the API if the API's filtering is not exhaustive
-  // or if you want to offer instant filtering on the currently loaded set of jobs.
-  // However, the primary filtering should ideally happen server-side via the API call in `loadJobs`.
+  // Client-side filtering for refinement on the currently loaded set.
+  // Primary filtering is done by the API via `loadJobs`.
   const displayedJobs = useMemo(() => {
-    // If your API handles all filtering perfectly, you might just return allJobs here.
-    // This client-side filter is a fallback or for UX refinement.
     return allJobs.filter(job => {
       const jobLocationLower = job.location?.toLowerCase() || '';
       const jobTitleLower = job.title?.toLowerCase() || '';
       const jobCompanyLower = job.company?.toLowerCase() || '';
       const jobDescLower = job.description?.toLowerCase() || '';
-      const filterKeywordLower = filters.keyword.toLowerCase();
-
+      
+      // Keyword filter applies if API didn't filter it or for refining loaded results
+      const filterKeywordLower = filters.keyword?.toLowerCase();
       const keywordMatch = filterKeywordLower
         ? jobTitleLower.includes(filterKeywordLower) ||
           jobCompanyLower.includes(filterKeywordLower) ||
           jobDescLower.includes(filterKeywordLower)
         : true;
       
+      // Location filtering primarily relies on API, but this can refine loaded results
       const generalLocationFilter = filters.location?.toLowerCase();
-      const generalLocationMatch = generalLocationFilter && generalLocationFilter !== 'all locations' && generalLocationFilter !== 'worldwide' && generalLocationFilter !== ''
-        ? jobLocationLower.includes(generalLocationFilter) || (generalLocationFilter === 'remote' && jobLocationLower.includes('remote'))
-        : true;
-
-      const countryMatch = filters.country
-        ? jobLocationLower.includes(filters.country.toLowerCase())
-        : true;
-      const stateMatch = filters.state
-        ? jobLocationLower.includes(filters.state.toLowerCase())
-        : true;
-      const cityMatch = filters.city
-        ? jobLocationLower.includes(filters.city.toLowerCase())
-        : true;
-      const areaMatch = filters.area 
-        ? jobLocationLower.includes(filters.area.toLowerCase())
-        : true;
+      let locationCombinedMatch = true;
       
       const detailedLocationProvided = !!(filters.country || filters.state || filters.city || filters.area);
-      
-      let locationCombinedMatch = generalLocationMatch;
-      if (detailedLocationProvided) {
-         // If detailed location is provided, it's the primary location filter
-        locationCombinedMatch = countryMatch && stateMatch && cityMatch && areaMatch;
-         // And if general location is also set (not 'All' or 'Worldwide'), it must also match
-        if (generalLocationFilter && generalLocationFilter !== 'all locations' && generalLocationFilter !== 'worldwide' && generalLocationFilter !== '') {
-            locationCombinedMatch = locationCombinedMatch && generalLocationMatch;
-        }
-      }
 
+      if (detailedLocationProvided) {
+        const countryMatch = filters.country ? jobLocationLower.includes(filters.country.toLowerCase()) : true;
+        const stateMatch = filters.state ? jobLocationLower.includes(filters.state.toLowerCase()) : true;
+        const cityMatch = filters.city ? jobLocationLower.includes(filters.city.toLowerCase()) : true;
+        const areaMatch = filters.area ? jobLocationLower.includes(filters.area.toLowerCase()) : true;
+        locationCombinedMatch = countryMatch && stateMatch && cityMatch && areaMatch;
+      } else if (generalLocationFilter && generalLocationFilter !== 'all locations' && generalLocationFilter !== 'worldwide' && generalLocationFilter !== '') {
+        locationCombinedMatch = jobLocationLower.includes(generalLocationFilter) || 
+                               (generalLocationFilter === 'remote' && jobLocationLower.includes('remote'));
+      }
 
       const jobTypeMatch = filters.jobTypes.length > 0
         ? filters.jobTypes.includes(job.type)
@@ -187,7 +168,6 @@ export default function HomePage() {
   }, [allJobs, filters]);
 
   const savedJobs = useMemo(() => {
-    // Find saved jobs from the currently *fetched* allJobs list
     return allJobs.filter(job => savedJobIds.includes(job.id));
   }, [allJobs, savedJobIds]);
 
@@ -219,30 +199,20 @@ export default function HomePage() {
          </Alert>
       )}
 
-      {!isLoading && !error && displayedJobs.length === 0 && allJobs.length > 0 && (
+      {!isLoading && !error && displayedJobs.length === 0 && form.formState.isSubmitted && (
         <Alert variant="default" className="shadow-md">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>No Jobs Match Filters</AlertTitle>
+          <AlertTitle>No Jobs Found</AlertTitle>
           <AlertDescription>
-            No jobs match your current client-side filter criteria from the loaded set. Try adjusting your filters or applying new search criteria above.
+            No jobs match your current search/filter criteria. Try adjusting your filters or broadening your search.
           </AlertDescription>
         </Alert>
       )}
       
-      {!isLoading && !error && displayedJobs.length === 0 && allJobs.length === 0 && filters.keyword && (
-         <Alert variant="default" className="shadow-md">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>No Jobs Found by API</AlertTitle>
-          <AlertDescription>
-            The job search API returned no results for your criteria. Try different keywords or broader location settings.
-          </AlertDescription>
-        </Alert>
-      )}
-
 
       {!isLoading && !error && displayedJobs.length > 0 && (
         <div>
-          <h2 className="text-2xl font-semibold mb-6">Job Listings ({displayedJobs.length} of {allJobs.length} fetched)</h2>
+          <h2 className="text-2xl font-semibold mb-6">Job Listings ({displayedJobs.length} matching client filters from {allJobs.length} fetched)</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {displayedJobs.map((job) => (
               <JobCard
@@ -259,7 +229,7 @@ export default function HomePage() {
       )}
 
       <SavedJobsSection 
-        savedJobs={savedJobs} // Pass only the saved subset of allJobs
+        savedJobs={savedJobs} 
         onSaveToggle={handleSaveToggle} 
         appliedJobIds={appliedJobIds} 
         onToggleApplied={handleToggleAppliedStatus} 
@@ -267,5 +237,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    

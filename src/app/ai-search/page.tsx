@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Wand2, AlertTriangle, Briefcase, UploadCloud, MapPin, BriefcaseBusiness, Github, Globe, Building, Map, Pin, XCircle, CheckCircle2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { JobCard } from '@/components/JobCard';
-import type { Job, JobType, FilterCriteria } from '@/types'; // Added FilterCriteria
+import type { Job, JobType, FilterCriteria } from '@/types';
 import { jobTypes as allJobTypes, locations as allLocations } from '@/data/mockJobs';
 import { fetchRealTimeJobs } from '@/services/jobSearchService';
 import { aiJobSearch, type AiJobSearchOutput } from '@/ai/flows/aiJobSearchFlow';
@@ -35,7 +35,7 @@ const ACCEPTED_FILE_TYPES = [
 
 
 const aiSearchFormSchema = z.object({
-  skills: z.string().min(10, { message: "Please describe your skills (min 10 characters)." }),
+  skills: z.string().min(3, { message: "Please describe your skills or job title (min 3 characters)." }),
   resumeFile: z
     .instanceof(File)
     .optional()
@@ -81,15 +81,13 @@ const defaultFormValues: AiSearchFormValues = {
   githubUrl: '',
 };
 
-// How many candidate jobs to fetch for the AI to analyze
 const CANDIDATE_JOBS_LIMIT = 50; 
 
 export default function AiSearchPage() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFetchingJobs, setIsFetchingJobs] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // AI analysis phase
+  const [isFetchingJobs, setIsFetchingJobs] = useState(false); // Job fetching phase
   const [error, setError] = useState<string | null>(null);
   const [recommendedJobsDisplay, setRecommendedJobsDisplay] = useState<RecommendedJobDisplay[]>([]);
-  // const [fetchedJobsForAI, setFetchedJobsForAI] = useState<Job[]>([]); // No longer need to store separately like this
   const [savedJobIds, setSavedJobIds] = useLocalStorage<string[]>('savedJobIds', []);
   const [appliedJobIds, setAppliedJobIds] = useLocalStorage<string[]>('appliedJobIds', []);
   const { toast } = useToast();
@@ -138,7 +136,6 @@ export default function AiSearchPage() {
   const handleClearFilters = () => {
     form.reset(defaultFormValues);
     setRecommendedJobsDisplay([]);
-    // setFetchedJobsForAI([]); // No longer needed
     setError(null);
     toast({
       title: "Filters Cleared",
@@ -148,8 +145,8 @@ export default function AiSearchPage() {
 
 
   const onSubmit: SubmitHandler<AiSearchFormValues> = async (data) => {
-    setIsLoading(true); // This now represents the AI analysis phase primarily
-    setIsFetchingJobs(true); // This represents the job fetching phase
+    setIsLoading(false); 
+    setIsFetchingJobs(true); 
     setError(null);
     setRecommendedJobsDisplay([]);
 
@@ -161,17 +158,15 @@ export default function AiSearchPage() {
         console.error("Error converting resume to data URI:", fileError);
         setError('Failed to process resume file. Please try a different file or skip.');
         form.setError("resumeFile", { type: "manual", message: "Could not process file." });
-        setIsLoading(false);
         setIsFetchingJobs(false);
         return;
       }
     }
 
     try {
-      // Step 1: Fetch candidate jobs using jobSearchService
       const filterCriteriaForFetch: FilterCriteria = {
-        keyword: data.skills, // Use skills as keyword for initial fetch
-        location: data.location || '', // Ensure empty string if undefined
+        keyword: data.skills, 
+        location: data.location || '', 
         country: data.country,
         state: data.state,
         city: data.city,
@@ -181,21 +176,20 @@ export default function AiSearchPage() {
       
       toast({
         title: "Fetching Live Jobs...",
-        description: `Searching for jobs based on: ${data.skills}, ${data.location || 'any location'}...`,
+        description: `Searching for jobs based on: ${data.skills || 'general criteria'}, ${data.location || 'any location'}...`,
       });
 
       const fetchedJobs = await fetchRealTimeJobs(filterCriteriaForFetch, CANDIDATE_JOBS_LIMIT);
-      // setFetchedJobsForAI(fetchedJobs); // No longer need to store if AI flow gets them directly
       setIsFetchingJobs(false);
 
 
       if (fetchedJobs.length === 0) {
         toast({
             title: "No Jobs Found by API",
-            description: "The initial job fetch returned no results. AI search cannot proceed. Try broader criteria for fetching jobs.",
+            description: "The initial job fetch returned no results. AI search cannot proceed. Try broader criteria or check API key.",
             variant: "default",
         });
-        setIsLoading(false); // Stop overall loading
+        setIsLoading(false); 
         return;
       }
       
@@ -203,9 +197,8 @@ export default function AiSearchPage() {
         title: "Jobs Fetched, AI Analyzing...",
         description: `Found ${fetchedJobs.length} potential jobs. Now asking AI to find the best matches...`,
       });
-      setIsLoading(true); // Ensure isLoading is true for AI analysis phase
+      setIsLoading(true); 
 
-      // Step 2: Pass fetched jobs to AI for analysis
       const detailedLocation = {
         country: data.country || undefined,
         state: data.state || undefined,
@@ -254,12 +247,12 @@ export default function AiSearchPage() {
       setError(errorMessage + " Ensure your JOB_SEARCH_API_KEY is valid and `src/services/jobSearchService.ts` is correctly configured for your chosen API.");
       toast({
         title: "Search Error",
-        description: errorMessage.substring(0, 200), // Keep toast message concise
+        description: errorMessage.substring(0, 200), 
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false); // Overall loading stops
-      setIsFetchingJobs(false); // Fetching specific phase stops
+      setIsLoading(false); 
+      setIsFetchingJobs(false); 
     }
   };
 
@@ -272,7 +265,7 @@ export default function AiSearchPage() {
             <CardTitle className="text-3xl">AI Powered Global Job Search</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Describe your skills, preferences, and optionally upload your resume or GitHub. Our AI will first fetch live job listings based on your keywords/location, then analyze them to find the most relevant global jobs for you.
+            Describe your skills (e.g., "AI Engineer", "Data Analyst Python SQL", "Content Writer SEO"), preferences, and optionally upload your resume or GitHub. Our AI will first fetch live job listings, then analyze them to find the most relevant global jobs for you.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -283,15 +276,15 @@ export default function AiSearchPage() {
                 name="skills"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-lg">Your Skills & Keywords</FormLabel>
+                    <FormLabel className="text-lg">Your Skills, Job Title, or Keywords</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="e.g., JavaScript, React, Node.js, Project Management, Agile, UI/UX Design, Python, Machine Learning..."
+                        placeholder="e.g., AI Engineer, Data Analyst Python SQL, Content Writer SEO, Project Management, UI/UX Design..."
                         className="min-h-[100px] text-base"
                         {...field}
                       />
                     </FormControl>
-                    <FormDescriptionComponent>This will also be used as keywords for the initial job fetch. Example: React, Next.js, Tailwind CSS, Firebase, UI design</FormDescriptionComponent>
+                    <FormDescriptionComponent>This will be used for the initial job fetch and AI analysis. Be specific for better results.</FormDescriptionComponent>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -474,7 +467,7 @@ export default function AiSearchPage() {
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Fetching Live Jobs...
                     </>
-                  ) : isLoading ? ( // This 'isLoading' refers to AI Analysis phase now
+                  ) : isLoading ? ( 
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       AI Analyzing Jobs...
@@ -510,8 +503,7 @@ export default function AiSearchPage() {
         </Alert>
       )}
       
-      {/* Separate loading indicator for job fetching phase can be kept if desired, or merged visual */}
-      {isFetchingJobs && !isLoading && !error && ( // Show only if fetching jobs AND not yet in AI analysis phase
+      {isFetchingJobs && !isLoading && !error && (
          <div className="flex justify-center items-center py-10">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
           <p className="ml-3 text-md text-muted-foreground">Fetching live job listings for AI...</p>
@@ -563,5 +555,3 @@ export default function AiSearchPage() {
     </div>
   );
 }
-
-    

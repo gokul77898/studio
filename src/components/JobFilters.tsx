@@ -16,8 +16,8 @@ interface JobFiltersProps {
   filters: FilterCriteria;
   onFilterChange: (filters: FilterCriteria) => void;
   onClearFilters: () => void;
-  onApplyFilters: () => void; // New prop for applying filters (triggering API call)
-  isApplying?: boolean; // Optional prop to disable button while applying
+  onApplyFilters: () => void; 
+  isApplying?: boolean; 
 }
 
 export function JobFilters({ filters, onFilterChange, onClearFilters, onApplyFilters, isApplying }: JobFiltersProps) {
@@ -45,20 +45,20 @@ export function JobFilters({ filters, onFilterChange, onClearFilters, onApplyFil
           Filter Jobs
         </CardTitle>
          <CardDescription className="text-xs">
-            Modify filters and click &quot;Apply Filters&quot; to search live job listings.
+            Enter keywords (e.g., "AI Engineer", "Data Analyst Python SQL", "Marketing Manager"), select location/type, then click &quot;Apply Filters&quot; to search live job listings.
          </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-end">
           <div className="space-y-2">
-            <Label htmlFor="keyword">Keyword</Label>
+            <Label htmlFor="keyword">Keyword, Skill, or Job Title</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 id="keyword"
                 name="keyword"
                 type="text"
-                placeholder="Job title, company, skills..."
+                placeholder="e.g., AI Engineer, Python, Marketing..."
                 value={filters.keyword}
                 onChange={handleInputChange}
                 className="pl-10"

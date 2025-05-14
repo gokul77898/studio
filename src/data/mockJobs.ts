@@ -4,10 +4,30 @@ import type { Job, JobType } from '@/types';
 const today = new Date();
 const twoDaysAgo = new Date();
 twoDaysAgo.setDate(today.getDate() - 2);
+const threeDaysAgo = new Date();
+threeDaysAgo.setDate(today.getDate() - 3);
+const fourDaysAgo = new Date();
+fourDaysAgo.setDate(today.getDate() - 4);
+const fiveDaysAgo = new Date();
+fiveDaysAgo.setDate(today.getDate() - 5);
+const sixDaysAgo = new Date();
+sixDaysAgo.setDate(today.getDate() - 6);
 const sevenDaysAgo = new Date();
 sevenDaysAgo.setDate(today.getDate() - 7);
+const eightDaysAgo = new Date();
+eightDaysAgo.setDate(today.getDate() - 8);
+const nineDaysAgo = new Date();
+nineDaysAgo.setDate(today.getDate() - 9);
+const tenDaysAgo = new Date();
+tenDaysAgo.setDate(today.getDate() - 10);
+const twelveDaysAgo = new Date();
+twelveDaysAgo.setDate(today.getDate() - 12);
 const fifteenDaysAgo = new Date();
 fifteenDaysAgo.setDate(today.getDate() - 15);
+const twentyDaysAgo = new Date();
+twentyDaysAgo.setDate(today.getDate() - 20);
+const twentyFiveDaysAgo = new Date();
+twentyFiveDaysAgo.setDate(today.getDate() - 25);
 const thirtyDaysAgo = new Date();
 thirtyDaysAgo.setDate(today.getDate() - 30);
 const fortyFiveDaysAgo = new Date();
@@ -15,7 +35,7 @@ fortyFiveDaysAgo.setDate(today.getDate() - 45);
 
 
 export const mockJobs: Job[] = [
-  // USA
+  // USA - Tech & AI/ML
   {
     id: '1',
     title: 'Senior Frontend Engineer',
@@ -52,17 +72,6 @@ export const mockJobs: Job[] = [
     equity: true,
   },
   {
-    id: '8',
-    title: 'Customer Support Lead',
-    company: 'HelpNow Services',
-    description: 'Lead a team of customer support representatives. Develop training materials and improve support processes. Patience and problem-solving skills are key.',
-    location: 'Austin, TX, USA',
-    type: 'Full-time',
-    url: 'https://jobs.example.com/job/helpnow-supportlead-austin',
-    postedDate: twoDaysAgo.toISOString(),
-    salary: '$75,000 - $90,000 USD',
-  },
-   {
     id: '20',
     title: 'DevOps Engineer',
     company: 'CloudNet Dynamics',
@@ -73,8 +82,89 @@ export const mockJobs: Job[] = [
     postedDate: fifteenDaysAgo.toISOString(),
     salary: '$110,000 - $140,000 USD',
   },
+  {
+    id: '36',
+    title: 'Machine Learning Engineer',
+    company: 'AI Systems Inc.',
+    description: 'Develop and deploy machine learning models for real-world applications. Expertise in TensorFlow or PyTorch, and MLOps practices.',
+    location: 'Boston, MA, USA',
+    type: 'Full-time',
+    url: 'https://jobs.example.com/ml-engineer-boston',
+    postedDate: threeDaysAgo.toISOString(),
+    salary: '$125,000 - $155,000 USD',
+    equity: true,
+  },
+  {
+    id: '37',
+    title: 'AI Research Scientist - Computer Vision',
+    company: 'Visionary AI Labs',
+    description: 'Conduct research and develop novel algorithms in computer vision. PhD preferred, strong publication record.',
+    location: 'Palo Alto, CA, USA',
+    type: 'Full-time',
+    url: 'https://jobs.example.com/ai-research-paloalto',
+    postedDate: tenDaysAgo.toISOString(),
+    salary: '$150,000 - $190,000 USD',
+  },
 
-  // UK
+  // USA - Other Domains
+  {
+    id: '8',
+    title: 'Customer Support Lead',
+    company: 'HelpNow Services',
+    description: 'Lead a team of customer support representatives. Develop training materials and improve support processes. Patience and problem-solving skills are key.',
+    location: 'Austin, TX, USA',
+    type: 'Full-time',
+    url: 'https://jobs.example.com/job/helpnow-supportlead-austin',
+    postedDate: twoDaysAgo.toISOString(),
+    salary: '$75,000 - $90,000 USD',
+  },
+  {
+    id: '38',
+    title: 'Digital Marketing Manager',
+    company: 'Growth Spark Digital',
+    description: 'Develop and execute comprehensive digital marketing strategies including SEO/SEM, social media, email, and content marketing.',
+    location: 'Los Angeles, CA, USA',
+    type: 'Full-time',
+    url: 'https://jobs.example.com/digital-marketing-la',
+    postedDate: fiveDaysAgo.toISOString(),
+    salary: '$90,000 - $110,000 USD',
+  },
+  {
+    id: '39',
+    title: 'Financial Analyst',
+    company: 'Capital Insights Group',
+    description: 'Perform financial forecasting, reporting, and operational metrics tracking. Analyze financial data and create financial models for decision support.',
+    location: 'New York, NY, USA',
+    type: 'Full-time',
+    url: 'https://jobs.example.com/financial-analyst-ny',
+    postedDate: twelveDaysAgo.toISOString(),
+    salary: '$85,000 - $105,000 USD',
+  },
+  {
+    id: '40',
+    title: 'Registered Nurse (RN) - ICU',
+    company: 'City General Hospital',
+    description: 'Provide critical care nursing to patients in the Intensive Care Unit. Must have valid RN license and ACLS/BLS certifications.',
+    location: 'Miami, FL, USA',
+    type: 'Full-time',
+    url: 'https://jobs.example.com/rn-icu-miami',
+    postedDate: fourDaysAgo.toISOString(),
+    salary: '$75,000 - $95,000 USD (plus shift differentials)',
+  },
+  {
+    id: '41',
+    title: 'Graphic Designer',
+    company: 'Creative Pixel Agency',
+    description: 'Create visually compelling designs for various media, including websites, social media, and print. Proficiency in Adobe Creative Suite (Photoshop, Illustrator, InDesign).',
+    location: 'Remote (USA)',
+    type: 'Contract',
+    url: 'https://jobs.example.com/graphic-designer-remote-usa',
+    postedDate: eightDaysAgo.toISOString(),
+    salary: '$45 - $65 USD / hour',
+  },
+
+
+  // UK - Tech & AI/ML
   {
     id: '5',
     title: 'Backend Developer (Node.js & Python)',
@@ -98,8 +188,19 @@ export const mockJobs: Job[] = [
     postedDate: sevenDaysAgo.toISOString(),
     salary: '£50,000 - £70,000 GBP',
   },
+  {
+    id: '42',
+    title: 'AI Ethics Researcher',
+    company: 'Ethica AI UK',
+    description: 'Research and develop frameworks for ethical AI development and deployment. Strong understanding of AI/ML and socio-technical implications.',
+    location: 'Oxford, UK',
+    type: 'Full-time',
+    url: 'https://jobs.example.com/ai-ethics-oxford',
+    postedDate: twentyDaysAgo.toISOString(),
+    salary: '£55,000 - £75,000 GBP',
+  },
 
-  // Canada
+  // Canada - Tech & Other
   {
     id: '22',
     title: 'Mobile App Developer (iOS/Android)',
@@ -123,8 +224,19 @@ export const mockJobs: Job[] = [
     salary: '$85,000 - $110,000 CAD',
     equity: true,
   },
+  {
+    id: '43',
+    title: 'Biotech Research Scientist',
+    company: 'BioFuture Labs',
+    description: 'Conduct research in molecular biology and genetics. Experience with CRISPR and NGS technologies preferred. PhD in relevant field.',
+    location: 'Montreal, QC, Canada',
+    type: 'Full-time',
+    url: 'https://jobs.example.com/biotech-research-montreal',
+    postedDate: sixDaysAgo.toISOString(),
+    salary: '$95,000 - $125,000 CAD',
+  },
 
-  // Germany
+  // Germany - Tech & AI
   {
     id: '24',
     title: 'Cloud Architect (Azure/GCP)',
@@ -138,9 +250,9 @@ export const mockJobs: Job[] = [
   },
   {
     id: '25',
-    title: 'AI Research Scientist',
+    title: 'AI Research Scientist - NLP',
     company: 'IntelliForce AI',
-    description: 'Conduct cutting-edge research in machine learning, particularly in computer vision and reinforcement learning. PhD required.',
+    description: 'Conduct cutting-edge research in Natural Language Processing. PhD required, focus on large language models and transformers.',
     location: 'Munich, Germany',
     type: 'Full-time',
     url: 'https://jobs.example.com/job/intelliforce-research-munich',
@@ -148,7 +260,7 @@ export const mockJobs: Job[] = [
     salary: '€90,000 - €120,000 EUR',
   },
 
-  // India
+  // India - Tech & Other
   {
     id: '26',
     title: 'Full Stack Developer (MERN)',
@@ -171,21 +283,44 @@ export const mockJobs: Job[] = [
     postedDate: twoDaysAgo.toISOString(),
     salary: '₹1,200,000 - ₹2,000,000 INR per annum',
   },
+  {
+    id: '44',
+    title: 'Content Writer - Technology & AI',
+    company: 'WordsAI India',
+    description: 'Create engaging and informative content (blogs, articles, whitepapers) on AI, machine learning, and emerging technologies.',
+    location: 'Remote (India)',
+    type: 'Part-time',
+    url: 'https://jobs.example.com/content-writer-ai-india',
+    postedDate: tenDaysAgo.toISOString(),
+    salary: '₹60,000 - ₹90,000 INR per month (pro-rata)',
+  },
 
-  // Australia
+  // Australia - Various
   {
     id: '28',
-    title: 'Digital Marketing Manager',
+    title: 'Digital Marketing Specialist',
     company: 'OzzieConnect Digital',
-    description: 'Lead digital marketing strategies including SEO, PPC, social media, and email marketing. Proven track record of successful campaigns.',
+    description: 'Manage digital marketing campaigns including SEO, PPC, social media, and email marketing. Proven track record of successful campaigns.',
     location: 'Sydney, Australia',
     type: 'Full-time',
     url: 'https://jobs.example.com/job/ozzieconnect-marketing-sydney',
     postedDate: sevenDaysAgo.toISOString(),
     salary: '$90,000 - $120,000 AUD',
   },
+  {
+    id: '45',
+    title: 'Renewable Energy Engineer',
+    company: 'GreenFuture Australia',
+    description: 'Design and implement solar and wind energy projects. Experience with project management and relevant software (e.g., PVSyst, HOMER).',
+    location: 'Melbourne, Australia',
+    type: 'Full-time',
+    url: 'https://jobs.example.com/renewable-energy-melbourne',
+    postedDate: twentyFiveDaysAgo.toISOString(),
+    salary: '$100,000 - $130,000 AUD',
+  },
 
-  // Singapore
+
+  // Singapore - Finance & Tech
   {
     id: '29',
     title: 'Fintech Business Analyst',
@@ -197,8 +332,19 @@ export const mockJobs: Job[] = [
     postedDate: fifteenDaysAgo.toISOString(),
     salary: '$80,000 - $110,000 SGD',
   },
+  {
+    id: '46',
+    title: 'Cloud Security Engineer',
+    company: 'SecureCloud Asia',
+    description: 'Implement and manage cloud security solutions in AWS, Azure, and GCP environments. Certifications like CISSP, CCSP are a plus.',
+    location: 'Singapore',
+    type: 'Full-time',
+    url: 'https://jobs.example.com/cloud-security-sg',
+    postedDate: nineDaysAgo.toISOString(),
+    salary: '$90,000 - $120,000 SGD',
+  },
 
-  // Japan
+  // Japan - Tech & Other
   {
     id: '30',
     title: 'Robotics Engineer',
@@ -210,8 +356,19 @@ export const mockJobs: Job[] = [
     postedDate: thirtyDaysAgo.toISOString(),
     salary: '¥7,000,000 - ¥10,000,000 JPY per annum',
   },
+  {
+    id: '47',
+    title: 'Bilingual Customer Success Manager (Japanese/English)',
+    company: 'GlobalConnect Japan',
+    description: 'Manage relationships with key enterprise clients, ensuring satisfaction and adoption of our SaaS products. Fluent in Japanese and English.',
+    location: 'Osaka, Japan',
+    type: 'Full-time',
+    url: 'https://jobs.example.com/customer-success-osaka',
+    postedDate: fiveDaysAgo.toISOString(),
+    salary: '¥6,500,000 - ¥9,000,000 JPY per annum',
+  },
 
-  // France
+  // France - UX & Other
   {
     id: '31',
     title: 'UX Researcher',
@@ -223,8 +380,19 @@ export const mockJobs: Job[] = [
     postedDate: twoDaysAgo.toISOString(),
     salary: '€55,000 - €75,000 EUR',
   },
+  {
+    id: '48',
+    title: 'Supply Chain Analyst',
+    company: 'EuroLogistics France',
+    description: 'Analyze and optimize supply chain operations, including inventory management, logistics, and procurement. Strong analytical skills.',
+    location: 'Lyon, France',
+    type: 'Full-time',
+    url: 'https://jobs.example.com/supply-chain-lyon',
+    postedDate: twentyDaysAgo.toISOString(),
+    salary: '€50,000 - €70,000 EUR',
+  },
   
-  // Remote / Global
+  // Remote / Global - Various Domains
   {
     id: '3',
     title: 'UX/UI Designer (Web & Mobile)',
@@ -249,9 +417,9 @@ export const mockJobs: Job[] = [
   },
   {
     id: '6',
-    title: 'Content Marketing Specialist (Tech)',
+    title: 'Content Marketing Specialist (B2B SaaS)',
     company: 'Growth Hackers Worldwide',
-    description: 'Plan and execute content marketing campaigns for tech clients. SEO, technical writing, and social media skills required.',
+    description: 'Plan and execute content marketing campaigns for B2B SaaS clients. SEO, technical writing, and social media skills required.',
     location: 'Remote (Anywhere)',
     type: 'Part-time',
     url: 'https://jobs.example.com/job/growthhackers-content-remote',
@@ -260,9 +428,9 @@ export const mockJobs: Job[] = [
   },
    {
     id: '32',
-    title: 'Technical Writer (SaaS)',
+    title: 'Technical Writer (API Documentation)',
     company: 'DocuPerfect Inc.',
-    description: 'Create clear, concise, and comprehensive documentation for SaaS products, including API guides, tutorials, and user manuals.',
+    description: 'Create clear, concise, and comprehensive API documentation for developers, including guides, tutorials, and reference materials.',
     location: 'Remote (Europe Timezones)',
     type: 'Full-time',
     url: 'https://jobs.example.com/job/docuperfect-writer-remote-eu',
@@ -271,9 +439,9 @@ export const mockJobs: Job[] = [
   },
   {
     id: '33',
-    title: 'Community Manager (Gaming)',
-    company: 'Nexus Gaming Collective',
-    description: 'Engage with and grow our online gaming community across Discord, Reddit, and social media. Passion for gaming and excellent communication skills.',
+    title: 'Community Manager (Open Source Project)',
+    company: 'Nexus OSS Collective',
+    description: 'Engage with and grow our online open-source community across GitHub, Discord, and forums. Passion for open source and excellent communication skills.',
     location: 'Remote (North America Timezones)',
     type: 'Contract',
     url: 'https://jobs.example.com/job/nexusgaming-cm-remote-na',
@@ -282,9 +450,9 @@ export const mockJobs: Job[] = [
   },
   {
     id: '34',
-    title: 'Blockchain Developer (Solidity)',
+    title: 'Blockchain Developer (Solidity & Rust)',
     company: 'DeFiChain Labs',
-    description: 'Develop and deploy smart contracts on Ethereum and other EVM-compatible chains. Strong experience with Solidity, Hardhat/Truffle, and Web3.js/Ethers.js.',
+    description: 'Develop and deploy smart contracts on Ethereum (Solidity) and Solana (Rust). Strong experience with Hardhat/Truffle and Web3.js/Ethers.js.',
     location: 'Remote (Global)',
     type: 'Full-time',
     url: 'https://jobs.example.com/job/defichain-blockchain-remote',
@@ -302,6 +470,28 @@ export const mockJobs: Job[] = [
     url: 'https://jobs.example.com/job/workanywhere-ops-remote',
     postedDate: twoDaysAgo.toISOString(),
     salary: '$130,000 - $180,000 USD',
+  },
+  {
+    id: '49',
+    title: 'Virtual Assistant / Executive Assistant',
+    company: 'Global Support Solutions',
+    description: 'Provide administrative, technical, or creative assistance to clients remotely. Excellent organizational and communication skills required.',
+    location: 'Remote (Global)',
+    type: 'Part-time',
+    url: 'https://jobs.example.com/virtual-assistant-remote',
+    postedDate: threeDaysAgo.toISOString(),
+    salary: '$20 - $35 USD / hour',
+  },
+  {
+    id: '50',
+    title: 'Data Annotation Specialist (AI/ML)',
+    company: 'LabelPro Services',
+    description: 'Label and annotate data (images, text, audio) for machine learning model training. Attention to detail is crucial.',
+    location: 'Remote (Global, flexible hours)',
+    type: 'Contract',
+    url: 'https://jobs.example.com/data-annotation-remote',
+    postedDate: sixDaysAgo.toISOString(),
+    salary: '$15 - $25 USD / hour',
   },
 ];
 
@@ -328,6 +518,8 @@ export const locations: string[] = [
   'Denver, CO, USA',
   'Miami, FL, USA',
   'Raleigh, NC, USA',
+  'Dallas, TX, USA',
+  'Philadelphia, PA, USA',
   // UK
   'London, UK',
   'Manchester, UK',
@@ -336,6 +528,7 @@ export const locations: string[] = [
   'Bristol, UK',
   'Birmingham, UK',
   'Oxford, UK',
+  'Glasgow, UK',
   // Canada
   'Toronto, ON, Canada',
   'Vancouver, BC, Canada',
@@ -343,6 +536,7 @@ export const locations: string[] = [
   'Waterloo, ON, Canada',
   'Calgary, AB, Canada',
   'Ottawa, ON, Canada',
+  'Edmonton, AB, Canada',
   // Germany
   'Berlin, Germany',
   'Munich, Germany',
@@ -350,6 +544,7 @@ export const locations: string[] = [
   'Frankfurt, Germany',
   'Cologne, Germany',
   'Stuttgart, Germany',
+  'Düsseldorf, Germany',
   // India
   'Bangalore, India',
   'Hyderabad, India',
@@ -358,18 +553,21 @@ export const locations: string[] = [
   'Mumbai, India',
   'Chennai, India',
   'Noida, India',
+  'Delhi, India',
   // Japan
   'Tokyo, Japan',
   'Osaka, Japan',
   'Kyoto, Japan',
   'Fukuoka, Japan',
   'Yokohama, Japan',
+  'Nagoya, Japan',
   // Australia
   'Sydney, Australia',
   'Melbourne, Australia',
   'Brisbane, Australia',
   'Perth, Australia',
   'Canberra, Australia',
+  'Adelaide, Australia',
   // Singapore
   'Singapore',
   // France
@@ -377,36 +575,47 @@ export const locations: string[] = [
   'Lyon, France',
   'Marseille, France',
   'Nice, France',
+  'Toulouse, France',
   // Netherlands
   'Amsterdam, Netherlands',
   'Rotterdam, Netherlands',
   'Utrecht, Netherlands',
   'The Hague, Netherlands',
+  'Eindhoven, Netherlands',
   // China
   'Beijing, China',
   'Shanghai, China',
   'Shenzhen, China',
   'Hangzhou, China',
+  'Guangzhou, China',
   // Brazil
   'Sao Paulo, Brazil',
   'Rio de Janeiro, Brazil',
   'Belo Horizonte, Brazil',
+  'Brasilia, Brazil',
   // Ireland
   'Dublin, Ireland',
   'Cork, Ireland',
+  'Galway, Ireland',
   // Switzerland
   'Zurich, Switzerland',
   'Geneva, Switzerland',
   'Lausanne, Switzerland',
+  'Bern, Switzerland',
   // Sweden
   'Stockholm, Sweden',
   'Gothenburg, Sweden',
+  'Malmö, Sweden',
   // Israel
   'Tel Aviv, Israel',
+  'Jerusalem, Israel',
+  'Haifa, Israel',
   // UAE
   'Dubai, UAE',
+  'Abu Dhabi, UAE',
   // South Korea
   'Seoul, South Korea',
+  'Busan, South Korea',
   // Other major hubs
   'Buenos Aires, Argentina',
   'Mexico City, Mexico',
@@ -418,4 +627,11 @@ export const locations: string[] = [
   'Madrid, Spain',
   'Milan, Italy',
   'Rome, Italy',
+  'Lisbon, Portugal',
+  'Brussels, Belgium',
+  'Copenhagen, Denmark',
+  'Oslo, Norway',
+  'Helsinki, Finland',
 ];
+
+    
