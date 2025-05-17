@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { conductMockInterviewTurn, type MockInterviewInput, type MockInterviewOutput, type MockInterviewTurn } from '@/ai/flows/mockInterviewFlow';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'; // Added import
 
 
 const interviewSetupSchema = z.object({
@@ -59,7 +60,7 @@ export default function MockInterviewPage() {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
     }
-  }, [interviewHistory, aiFullResponse]);
+  }, [interviewHistory, aiFullResponse, currentAiQuestion, isLoading]); // Added dependencies to ensure scroll on all relevant updates
 
 
   const handleStartInterview: SubmitHandler<InterviewSetupValues> = async (data) => {
@@ -76,7 +77,7 @@ export default function MockInterviewPage() {
       const input: MockInterviewInput = { jobContext: data.jobContext || undefined };
       const result = await conductMockInterviewTurn(input);
       
-      setAiFullResponse(result.aiResponseText);
+      setAiFullResponse(result.aiResponseText); // Store the full initial response/question
       setCurrentAiQuestion(result.currentAiQuestion || null);
       if (result.isSessionOver) {
         setIsSessionOver(true);
@@ -94,34 +95,65 @@ export default function MockInterviewPage() {
 
     setIsLoading(true);
     setError(null);
-    setAiFullResponse(null); // Clear previous full response
+    setAiFullResponse(null); 
 
-    // Optimistically add user's answer to history (feedback will be added later)
-    const currentTurnForHistory: MockInterviewTurn = {
+    const userTurnForHistory: MockInterviewTurn = {
         question: currentAiQuestion,
         answer: data.answer,
-        // Feedback will be populated by AI
+        // Feedback will be populated after AI responds
     };
     
+    // Optimistically add user's answer and the AI's question to history.
+    // The AI's response will be added as a new message or will contain feedback for this turn.
+    setInterviewHistory(prev => [...prev, userTurnForHistory]);
+    setCurrentAiQuestion(null); // Clear current question as we are waiting for AI feedback/next question
+
     try {
       const input: MockInterviewInput = {
         jobContext: jobContext,
         userAnswer: data.answer,
-        lastAiQuestion: currentAiQuestion,
-        interviewHistory: interviewHistory,
+        lastAiQuestion: userTurnForHistory.question, // Pass the question user actually answered
+        interviewHistory: interviewHistory, // Pass the history *before* this current user answer for AI context
       };
       const result = await conductMockInterviewTurn(input);
 
-      setAiFullResponse(result.aiResponseText);
-      setCurrentAiQuestion(result.currentAiQuestion || null);
+      setAiFullResponse(result.aiResponseText); // This contains feedback + next question or concluding remarks
+      setCurrentAiQuestion(result.currentAiQuestion || null); // Set the new question
       
-      // Update the last turn in history with AI feedback
-      // The AI's response text should contain feedback. We assume the prompt guides AI here.
-      // For simplicity, we'll store the entire aiResponseText as feedback if it contains some.
-      // A more robust solution might involve the AI explicitly outputting a feedback field.
-      const feedbackText = result.aiResponseText.split("Here's your next question:")[0].trim();
+      // Update the last turn in history with AI feedback, which is part of aiResponseText
+      // The prompt asks the AI to structure aiResponseText as: "Feedback... Here's your next question: New Question"
+      // So, we can attempt to parse this. A more robust way would be for AI to output feedback and question separately.
+      
+      // For simplicity, we'll assume the feedback is the part of aiResponseText before "Here's your next question:"
+      // or the whole text if it's a concluding remark.
+      let feedbackText = result.aiResponseText;
+      if (result.currentAiQuestion && result.aiResponseText.includes(result.currentAiQuestion)) {
+         const questionStartIndex = result.aiResponseText.indexOf(result.currentAiQuestion);
+         // Try to find "Here's your next question:" or similar cue if question is distinct
+         const cue = "Here's your next question:";
+         const cueIndex = result.aiResponseText.lastIndexOf(cue, questionStartIndex);
+         if (cueIndex !== -1) {
+            feedbackText = result.aiResponseText.substring(0, cueIndex).trim();
+         } else if (questionStartIndex > 0) { // If no cue, but question is present, take text before it
+            feedbackText = result.aiResponseText.substring(0, questionStartIndex).trim();
+         }
+      } else if (result.isSessionOver) {
+        feedbackText = result.aiResponseText; // It's a concluding remark
+      }
 
-      setInterviewHistory(prev => [...prev, {...currentTurnForHistory, feedback: feedbackText}]);
+
+      setInterviewHistory(prev => {
+        const updatedHistory = [...prev];
+        if (updatedHistory.length > 0) {
+          const lastTurnIndex = updatedHistory.length - 1;
+          // Ensure the question in history matches the one feedback is for
+          if(updatedHistory[lastTurnIndex].question === userTurnForHistory.question && !updatedHistory[lastTurnIndex].feedback){
+            updatedHistory[lastTurnIndex] = { ...updatedHistory[lastTurnIndex], feedback: feedbackText };
+          }
+        }
+        return updatedHistory;
+      });
+
 
       if (result.isSessionOver) {
         setIsSessionOver(true);
@@ -129,11 +161,13 @@ export default function MockInterviewPage() {
       } else {
         toast({ title: "Answer Submitted!", description: "AI is providing feedback and the next question."});
       }
-      answerForm.reset(); // Clear the answer input
+      answerForm.reset(); 
     } catch (e) {
       handleApiError(e);
-      // If error, remove the optimistic update or mark it as failed.
-      // For now, we'll just let it be, but a production app might revert.
+      // Revert optimistic update on error if necessary, or display error appropriately
+      // For now, we log and let user restart.
+       setInterviewHistory(prev => prev.slice(0, -1)); // Remove the optimistically added user turn
+       setCurrentAiQuestion(userTurnForHistory.question); // Restore current question
     } finally {
       setIsLoading(false);
     }
@@ -148,7 +182,8 @@ export default function MockInterviewPage() {
       description: errorMessage.substring(0,100),
       variant: "destructive",
     });
-    setIsInterviewStarted(false); // Allow user to try starting again
+    // Consider resetting more state if appropriate
+    // setIsInterviewStarted(false); 
   }
 
   const handleRestartInterview = () => {
@@ -220,21 +255,34 @@ export default function MockInterviewPage() {
               )}
 
               <ScrollArea className="h-[300px] w-full rounded-md border p-4 space-y-4" ref={scrollAreaRef}>
-                {interviewHistory.map((turn, index) => (
-                  <div key={index} className="space-y-2 mb-4">
-                    {turn.question && (
-                      <div className="flex items-start gap-2">
+                {/* Display initial AI message if available */}
+                {interviewHistory.length === 0 && aiFullResponse && !currentAiQuestion && !isLoading && (
+                     <div className="flex items-start gap-2">
                         <Avatar className="h-8 w-8 mt-1">
-                          <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5" /></AvatarFallback>
+                           <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5" /></AvatarFallback>
                         </Avatar>
                         <div className="bg-muted p-3 rounded-lg shadow-sm max-w-[85%]">
-                          <p className="font-semibold text-sm text-primary">AI Question:</p>
-                          <p className="text-sm whitespace-pre-wrap">{turn.question}</p>
+                           <p className="text-sm whitespace-pre-wrap">{aiFullResponse.split("Here's your next question:")[0].trim()}</p>
                         </div>
                       </div>
-                    )}
+                )}
+                
+                {interviewHistory.map((turn, index) => (
+                  <React.Fragment key={index}>
+                    {/* AI Question that led to this turn's answer */}
+                    <div className="flex items-start gap-2">
+                      <Avatar className="h-8 w-8 mt-1">
+                        <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5" /></AvatarFallback>
+                      </Avatar>
+                      <div className="bg-muted p-3 rounded-lg shadow-sm max-w-[85%]">
+                        <p className="font-semibold text-sm text-primary">AI Question:</p>
+                        <p className="text-sm whitespace-pre-wrap">{turn.question}</p>
+                      </div>
+                    </div>
+                  
+                    {/* User Answer */}
                     {turn.answer && (
-                      <div className="flex items-start gap-2 justify-end">
+                      <div className="flex items-start gap-2 justify-end mt-2">
                          <div className="bg-blue-500 text-white p-3 rounded-lg shadow-sm max-w-[85%]">
                            <p className="font-semibold text-sm">Your Answer:</p>
                            <p className="text-sm whitespace-pre-wrap">{turn.answer}</p>
@@ -244,33 +292,26 @@ export default function MockInterviewPage() {
                          </Avatar>
                       </div>
                     )}
-                     {turn.feedback && (
-                      <div className="flex items-start gap-2">
+
+                    {/* AI Feedback for this turn */}
+                    {turn.feedback && (
+                      <div className="flex items-start gap-2 mt-2">
                         <Avatar className="h-8 w-8 mt-1">
-                           <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5" /></AvatarFallback>
+                           <AvatarFallback className="bg-accent text-accent-foreground"><Bot className="h-5 w-5" /></AvatarFallback>
                         </Avatar>
                         <div className="bg-accent/20 border border-accent/50 p-3 rounded-lg shadow-sm max-w-[85%]">
                            <p className="font-semibold text-sm text-accent">AI Feedback:</p>
-                           <p className="text-sm whitespace-pre-wrap">{turn.feedback.split("Here's your next question:")[0].trim()}</p>
+                           <p className="text-sm whitespace-pre-wrap">{turn.feedback}</p>
                         </div>
                       </div>
                     )}
-                    {index < interviewHistory.length -1 && <Separator className="my-4"/>}
-                  </div>
+                     {index < interviewHistory.length -1 && <Separator className="my-4"/>}
+                  </React.Fragment>
                 ))}
-                {/* Display current AI interaction (question or full response) */}
-                {aiFullResponse && !currentAiQuestion && !isSessionOver &&  ( // Initial response before first question is isolated
-                     <div className="flex items-start gap-2">
-                        <Avatar className="h-8 w-8 mt-1">
-                           <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5" /></AvatarFallback>
-                        </Avatar>
-                        <div className="bg-muted p-3 rounded-lg shadow-sm max-w-[85%]">
-                           <p className="text-sm whitespace-pre-wrap">{aiFullResponse}</p>
-                        </div>
-                      </div>
-                )}
-                 {currentAiQuestion && (
-                     <div className="flex items-start gap-2">
+                
+                {/* Display current AI question if it's a new one and not part of history yet */}
+                {currentAiQuestion && (
+                     <div className="flex items-start gap-2 mt-4">
                         <Avatar className="h-8 w-8 mt-1">
                            <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5" /></AvatarFallback>
                         </Avatar>
@@ -280,8 +321,9 @@ export default function MockInterviewPage() {
                         </div>
                       </div>
                 )}
-                 {isLoading && (
-                    <div className="flex items-start gap-2">
+                
+                {isLoading && (
+                    <div className="flex items-start gap-2 mt-4">
                         <Avatar className="h-8 w-8 mt-1">
                            <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5" /></AvatarFallback>
                         </Avatar>
@@ -290,14 +332,15 @@ export default function MockInterviewPage() {
                         </div>
                     </div>
                 )}
-                {isSessionOver && aiFullResponse && (
-                     <div className="flex items-start gap-2">
+
+                {isSessionOver && aiFullResponse && !currentAiQuestion && (
+                     <div className="flex items-start gap-2 mt-4">
                         <Avatar className="h-8 w-8 mt-1">
-                           <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5" /></AvatarFallback>
+                           <AvatarFallback className="bg-green-600 text-white"><Bot className="h-5 w-5" /></AvatarFallback>
                         </Avatar>
                         <div className="bg-green-100 border border-green-300 p-3 rounded-lg shadow-sm max-w-[85%]">
                            <p className="font-semibold text-sm text-green-700">Session Ended:</p>
-                           <p className="text-sm whitespace-pre-wrap">{aiFullResponse}</p>
+                           <p className="text-sm whitespace-pre-wrap">{aiFullResponse.includes("Here's your next question:") ? aiFullResponse.split("Here's your next question:")[0].trim() : aiFullResponse}</p>
                         </div>
                       </div>
                 )}
@@ -305,7 +348,7 @@ export default function MockInterviewPage() {
 
               </ScrollArea>
               
-              {!isSessionOver && currentAiQuestion && (
+              {!isSessionOver && currentAiQuestion && !isLoading && (
                 <Form {...answerForm}>
                   <form onSubmit={answerForm.handleSubmit(handleAnswerSubmit)} className="space-y-4 pt-4 border-t">
                     <FormField
@@ -358,3 +401,4 @@ export default function MockInterviewPage() {
     </div>
   );
 }
+
