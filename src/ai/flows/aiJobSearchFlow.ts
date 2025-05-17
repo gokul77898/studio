@@ -116,6 +116,24 @@ If no Software, Full Stack, AI, or ML jobs are a good fit, return an empty recom
 `,
   config: {
     temperature: 0.3, // Lower temperature for more deterministic and focused output
+    safetySettings: [
+      {
+        category: 'HARM_CATEGORY_HATE_SPEECH',
+        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+      },
+      {
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_ONLY_HIGH', // More permissive for "dangerous content" if job descriptions might innocuously trigger stricter filters.
+      },
+      {
+        category: 'HARM_CATEGORY_HARASSMENT',
+        threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+      },
+      {
+        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+        threshold: 'BLOCK_ONLY_HIGH', // More permissive for "sexually explicit" if job descriptions might innocuously trigger.
+      },
+    ],
   }
 });
 
@@ -152,3 +170,4 @@ const aiJobSearchFlow = ai.defineFlow(
     return { recommendations: validRecommendations };
   }
 );
+
