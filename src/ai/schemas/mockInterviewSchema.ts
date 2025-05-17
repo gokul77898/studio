@@ -1,5 +1,4 @@
 
-'use server';
 /**
  * @fileOverview Zod schemas for AI Mock Interview Practice flow.
  */
