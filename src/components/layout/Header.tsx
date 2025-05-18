@@ -1,8 +1,27 @@
 
+'use client';
+
 import Link from 'next/link';
-import { Briefcase, Wand2, Lightbulb, FileScan, Mail, Brain, MessageSquare } from 'lucide-react'; // Added MessageSquare
+import { Briefcase, Wand2, Lightbulb, FileScan, Mail, Brain, MessageSquare, Menu, X, List } from 'lucide-react';
+import { useState } from 'react';
 
 export function Header() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const navLinks = [
+    { href: "/", text: "Jobs", icon: List },
+    { href: "/ai-search", text: "AI Search", icon: Wand2 },
+    { href: "/resume-analyzer", text: "Resume AI", icon: FileScan },
+    { href: "/cover-letter-generator", text: "Cover Letter AI", icon: Mail },
+    { href: "/skill-gap-analyzer", text: "Skill Gap AI", icon: Brain },
+    { href: "/mock-interview", text: "Mock Interview", icon: MessageSquare },
+    { href: "/guidance", text: "Guidance", icon: Lightbulb },
+  ];
+
+  const handleMobileLinkClick = () => {
+    setIsMobileMenuOpen(false);
+  };
+
   return (
     <header className="bg-card border-b border-border shadow-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -10,36 +29,52 @@ export function Header() {
           <Briefcase className="h-7 w-7" />
           <h1 className="text-2xl font-semibold">Career Compass</h1>
         </Link>
-        <nav className="flex items-center gap-2 md:gap-3 text-xs sm:text-sm flex-wrap justify-end">
-          <Link href="/" className="font-medium text-foreground hover:text-primary transition-colors whitespace-nowrap">
-            Jobs
-          </Link>
-          <Link href="/ai-search" className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors whitespace-nowrap">
-            <Wand2 className="h-4 w-4" />
-            AI&nbsp;Search
-          </Link>
-          <Link href="/resume-analyzer" className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors whitespace-nowrap">
-            <FileScan className="h-4 w-4" />
-            Resume&nbsp;AI
-          </Link>
-          <Link href="/cover-letter-generator" className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors whitespace-nowrap">
-            <Mail className="h-4 w-4" />
-            Cover&nbsp;Letter&nbsp;AI
-          </Link>
-          <Link href="/skill-gap-analyzer" className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors whitespace-nowrap">
-            <Brain className="h-4 w-4" />
-            Skill&nbsp;Gap&nbsp;AI
-          </Link>
-          <Link href="/mock-interview" className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors whitespace-nowrap">
-            <MessageSquare className="h-4 w-4" /> {/* Icon for Mock Interview */}
-            Mock&nbsp;Interview
-          </Link>
-          <Link href="/guidance" className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors whitespace-nowrap">
-            <Lightbulb className="h-4 w-4" />
-            Guidance
-          </Link>
+
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex items-center gap-2 md:gap-3 text-xs sm:text-sm flex-wrap justify-end">
+          {navLinks.map(link => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors whitespace-nowrap px-2 py-1 rounded-md"
+            >
+              <link.icon className="h-4 w-4" />
+              {link.text}
+            </Link>
+          ))}
         </nav>
+
+        {/* Mobile Menu Button */}
+        <div className="md:hidden">
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="text-foreground hover:text-primary p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            aria-label="Toggle menu"
+            aria-expanded={isMobileMenuOpen}
+          >
+            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </div>
+
+      {/* Mobile Navigation Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden absolute top-16 left-0 right-0 bg-card border-b border-border shadow-lg z-40">
+          <nav className="flex flex-col items-stretch px-2 py-3 space-y-1">
+            {navLinks.map(link => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={handleMobileLinkClick}
+                className="flex items-center gap-3 px-3 py-3 text-base font-medium text-foreground hover:bg-accent hover:text-accent-foreground rounded-md transition-colors"
+              >
+                <link.icon className="h-5 w-5" />
+                <span>{link.text}</span>
+              </Link>
+            ))}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
