@@ -56,15 +56,19 @@ export default function MockInterviewSessionPage() {
   useEffect(() => {
     const setupDataString = localStorage.getItem('mockInterviewSetup');
     if (setupDataString) {
+      let parsedData: MockInterviewSessionSetup | null = null;
       try {
-        const parsedData: MockInterviewSessionSetup = JSON.parse(setupDataString);
-        if (!parsedData.resumeDataUri) {
-            throw new Error("Resume data is missing for session initialization.");
-        }
+        parsedData = JSON.parse(setupDataString);
+      } catch (e) {
+        console.error("Failed to parse interview setup data from localStorage:", e);
+        toast({ title: "Error Starting Session", description: "Invalid setup data. Please try setting up again.", variant: "destructive" });
+        router.push('/mock-interview');
+        return;
+      }
+
+      if (parsedData && parsedData.resumeDataUri) {
         setSessionSetup(parsedData);
-        localStorage.removeItem('mockInterviewSetup'); // Clear after loading
         
-        // Initiate the first turn of the interview
         const initialInput: MockInterviewInput = {
             resumeDataUri: parsedData.resumeDataUri,
             userSkills: parsedData.userSkills,
@@ -72,10 +76,14 @@ export default function MockInterviewSessionPage() {
             jobContext: parsedData.jobContext,
             interviewHistory: [],
         };
-        handleInterviewTurn(initialInput, true); // true for initial call
-      } catch (e) {
-        console.error("Failed to parse or use interview setup data:", e);
-        toast({ title: "Error Starting Session", description: "Could not retrieve setup data. Please try setting up again.", variant: "destructive" });
+        handleInterviewTurn(initialInput, true)
+          .finally(() => {
+            // Clear localStorage only after the first turn has been attempted
+            localStorage.removeItem('mockInterviewSetup');
+          });
+      } else {
+        toast({ title: "No Resume Data", description: "Resume data is missing for session initialization. Please set up your mock interview again.", variant: "destructive" });
+        localStorage.removeItem('mockInterviewSetup'); // Clear invalid data
         router.push('/mock-interview');
       }
     } else {
@@ -83,7 +91,7 @@ export default function MockInterviewSessionPage() {
       router.push('/mock-interview');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, toast]); // Run once on mount
+  }, []); // CRITICAL: Empty dependency array ensures this runs only ONCE on mount.
 
 
   useEffect(() => {
@@ -103,7 +111,6 @@ export default function MockInterviewSessionPage() {
       setCurrentAiQuestion(result.currentAiQuestion || null);
 
       if (!isInitialCall && input.userAnswer && input.lastAiQuestion) {
-        // For subsequent turns, update the last turn in history with AI feedback
         let feedbackText = result.aiResponseText;
         if (result.currentAiQuestion && result.aiResponseText.includes(result.currentAiQuestion)) {
            const questionStartIndex = result.aiResponseText.indexOf(result.currentAiQuestion);
@@ -158,17 +165,19 @@ export default function MockInterviewSessionPage() {
     const userTurnForHistory: MockInterviewTurn = {
       question: currentAiQuestion,
       answer: data.answer,
-      // Feedback will be populated after AI responds.
     };
     setInterviewHistory(prev => [...prev, userTurnForHistory]);
     
     const turnInput: MockInterviewInput = {
-      ...sessionSetup, // Pass resume, skills, company from initial setup
+      resumeDataUri: sessionSetup.resumeDataUri, // Ensure resumeDataUri is always passed
+      userSkills: sessionSetup.userSkills,
+      targetCompanyName: sessionSetup.targetCompanyName,
+      jobContext: sessionSetup.jobContext,
       userAnswer: data.answer,
       lastAiQuestion: currentAiQuestion,
-      interviewHistory: interviewHistory, // Pass history *before* this current user answer
+      interviewHistory: interviewHistory, 
     };
-    setCurrentAiQuestion(null); // Clear current question visually while waiting
+    setCurrentAiQuestion(null); 
     await handleInterviewTurn(turnInput);
   };
 
@@ -179,17 +188,20 @@ export default function MockInterviewSessionPage() {
     setAiFullResponse(null);
 
     const endSessionInput: MockInterviewInput = {
-        ...sessionSetup,
+        resumeDataUri: sessionSetup.resumeDataUri, // Ensure resumeDataUri is always passed
+        userSkills: sessionSetup.userSkills,
+        targetCompanyName: sessionSetup.targetCompanyName,
+        jobContext: sessionSetup.jobContext,
         interviewHistory: interviewHistory,
         lastAiQuestion: currentAiQuestion || undefined,
-        userAnswer: "(User clicked 'End Interview')", // Provide some context for AI if needed
+        userAnswer: "(User clicked 'End Interview')", 
         endSessionSignal: true,
     };
     await handleInterviewTurn(endSessionInput);
     setIsLoading(false);
   };
 
-  if (!isInterviewInitialized && !error) {
+  if (!isInterviewInitialized && !error && !sessionSetup) { // Added !sessionSetup to condition
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
