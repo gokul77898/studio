@@ -36,7 +36,7 @@ User's Stated Skills (if provided): {{{userSkills}}}
 Target Company (if provided, consider its typical interview style/difficulty if widely known): {{{targetCompanyName}}}
 Job Context (general role/interview type): {{{jobContext}}}
 
-(If resume, skills, or company are provided, prioritize tailoring questions to them. If `jobContext` is available, use it to guide the type of questions. If none of these are provided, ask general behavioral or common interview questions.)
+(If resume, skills, or company are provided, prioritize tailoring questions to them. If jobContext is available, use it to guide the type of questions. If none of these are provided, ask general behavioral or common interview questions.)
 
 Interview History (previous turns, if any):
 {{#each interviewHistory}}
@@ -127,3 +127,4 @@ export async function conductMockInterviewTurn(
     isSessionOver: output.isSessionOver || false,
   };
 }
+
