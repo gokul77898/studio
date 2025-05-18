@@ -103,5 +103,13 @@ body {
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+
+    /* Background image for "working" theme. data-ai-hint="office work" */
+    background-image: url('https://placehold.co/1920x1080.png');
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    min-height: 100vh; /* Ensure body covers full viewport height */
   }
 }
