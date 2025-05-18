@@ -268,7 +268,7 @@ export default function MockInterviewSessionPage() {
                   </Avatar>
                   <div className="bg-muted p-3 rounded-lg shadow-sm max-w-[85%]">
                      <p className="font-semibold text-sm text-primary">AI Coach Asks:</p>
-                     <p className_name="text-sm whitespace-pre-wrap">{currentAiQuestion}</p>
+                     <p className="text-sm whitespace-pre-wrap">{currentAiQuestion}</p>
                   </div>
                 </div>
           )}
@@ -345,3 +345,4 @@ export default function MockInterviewSessionPage() {
     </div>
   );
 }
+
