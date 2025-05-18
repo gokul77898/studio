@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react'; // Added React import
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { SubmitHandler} from 'react-hook-form';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,9 +10,9 @@ import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as FormDescriptionComponent } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, AlertTriangle, User, Bot, Send, Brain, StopCircle, Briefcase, Building } from 'lucide-react';
+import { Loader2, AlertTriangle, User, Bot, Send, Brain, StopCircle, Briefcase, Building, Mic, MicOff, Volume2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
 import { conductMockInterviewTurn, type MockInterviewInput, type MockInterviewOutput, type MockInterviewTurn } from '@/ai/flows/mockInterviewFlow';
@@ -32,6 +32,14 @@ interface MockInterviewSessionSetup {
   jobContext?: string;
 }
 
+// Speech Recognition API might not be available on all window objects
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition | undefined;
+    webkitSpeechRecognition: typeof SpeechRecognition | undefined;
+  }
+}
+
 export default function MockInterviewSessionPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,10 +49,12 @@ export default function MockInterviewSessionPage() {
   const [sessionSetup, setSessionSetup] = useState<MockInterviewSessionSetup | null>(null);
   const [interviewHistory, setInterviewHistory] = useState<MockInterviewTurn[]>([]);
   const [currentAiQuestion, setCurrentAiQuestion] = useState<string | null>(null);
-  const [aiFullResponse, setAiFullResponse] = useState<string | null>(null); // To store the raw AI response text for display
+  const [aiFullResponse, setAiFullResponse] = useState<string | null>(null);
   const [isSessionOver, setIsSessionOver] = useState(false);
   const [isInterviewInitialized, setIsInterviewInitialized] = useState(false);
 
+  const [isRecording, setIsRecording] = useState(false);
+  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const answerForm = useForm<UserAnswerValues>({
@@ -52,7 +62,18 @@ export default function MockInterviewSessionPage() {
     defaultValues: { answer: '' },
   });
 
-  // Load setup data from localStorage and initiate interview
+  const speakText = useCallback((text: string) => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      // Optionally configure voice, rate, pitch here if needed
+      // utterance.voice = window.speechSynthesis.getVoices()[0]; // Example
+      utterance.lang = 'en-US';
+      utterance.rate = 0.9;
+      window.speechSynthesis.cancel(); // Cancel any previous speech
+      window.speechSynthesis.speak(utterance);
+    }
+  }, []);
+
   useEffect(() => {
     const setupDataString = localStorage.getItem('mockInterviewSetup');
     if (setupDataString) {
@@ -68,7 +89,6 @@ export default function MockInterviewSessionPage() {
 
       if (parsedData && parsedData.resumeDataUri) {
         setSessionSetup(parsedData);
-        
         const initialInput: MockInterviewInput = {
             resumeDataUri: parsedData.resumeDataUri,
             userSkills: parsedData.userSkills,
@@ -76,14 +96,12 @@ export default function MockInterviewSessionPage() {
             jobContext: parsedData.jobContext,
             interviewHistory: [],
         };
-        handleInterviewTurn(initialInput, true)
-          .finally(() => {
-            // Clear localStorage only after the first turn has been attempted
-            localStorage.removeItem('mockInterviewSetup');
-          });
+        handleInterviewTurn(initialInput, true).finally(() => {
+          localStorage.removeItem('mockInterviewSetup');
+        });
       } else {
-        toast({ title: "No Resume Data", description: "Resume data is missing for session initialization. Please set up your mock interview again.", variant: "destructive" });
-        localStorage.removeItem('mockInterviewSetup'); // Clear invalid data
+        toast({ title: "No Resume Data", description: "Resume data is missing. Please set up your mock interview again.", variant: "destructive" });
+        localStorage.removeItem('mockInterviewSetup');
         router.push('/mock-interview');
       }
     } else {
@@ -91,7 +109,7 @@ export default function MockInterviewSessionPage() {
       router.push('/mock-interview');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // CRITICAL: Empty dependency array ensures this runs only ONCE on mount.
+  }, []);
 
 
   useEffect(() => {
@@ -108,7 +126,13 @@ export default function MockInterviewSessionPage() {
     try {
       const result = await conductMockInterviewTurn(input);
       setAiFullResponse(result.aiResponseText);
+      
+      const questionToSpeak = result.currentAiQuestion || (result.isSessionOver && result.aiResponseText ? result.aiResponseText : null);
+      if (questionToSpeak) {
+        speakText(questionToSpeak);
+      }
       setCurrentAiQuestion(result.currentAiQuestion || null);
+
 
       if (!isInitialCall && input.userAnswer && input.lastAiQuestion) {
         let feedbackText = result.aiResponseText;
@@ -137,6 +161,9 @@ export default function MockInterviewSessionPage() {
       if (result.isSessionOver) {
         setIsSessionOver(true);
         toast({ title: "Mock Interview Session Ended.", description: "Hope this was helpful!" });
+        if (!input.endSessionSignal) { // If AI ended it naturally, wait a bit then redirect
+          setTimeout(() => router.push('/mock-interview'), 3000);
+        }
       } else if (!isInitialCall){
         toast({ title: "Answer Submitted!", description: "AI is providing feedback and the next question." });
       } else {
@@ -161,6 +188,11 @@ export default function MockInterviewSessionPage() {
 
   const handleAnswerSubmit: SubmitHandler<UserAnswerValues> = async (data) => {
     if (!currentAiQuestion || isSessionOver || !sessionSetup) return;
+    if (isRecording && speechRecognitionRef.current) {
+        speechRecognitionRef.current.stop();
+        setIsRecording(false);
+    }
+    window.speechSynthesis.cancel(); // Stop any ongoing AI speech
 
     const userTurnForHistory: MockInterviewTurn = {
       question: currentAiQuestion,
@@ -169,7 +201,7 @@ export default function MockInterviewSessionPage() {
     setInterviewHistory(prev => [...prev, userTurnForHistory]);
     
     const turnInput: MockInterviewInput = {
-      resumeDataUri: sessionSetup.resumeDataUri, // Ensure resumeDataUri is always passed
+      resumeDataUri: sessionSetup.resumeDataUri,
       userSkills: sessionSetup.userSkills,
       targetCompanyName: sessionSetup.targetCompanyName,
       jobContext: sessionSetup.jobContext,
@@ -182,13 +214,22 @@ export default function MockInterviewSessionPage() {
   };
 
   const handleEndInterview = async () => {
-    if (!sessionSetup) return;
+    if (!sessionSetup) {
+      router.push('/mock-interview'); // No setup, just redirect
+      return;
+    }
+    if (isRecording && speechRecognitionRef.current) {
+        speechRecognitionRef.current.stop();
+        setIsRecording(false);
+    }
+    window.speechSynthesis.cancel();
+
     setIsLoading(true);
     setError(null);
     setAiFullResponse(null);
 
     const endSessionInput: MockInterviewInput = {
-        resumeDataUri: sessionSetup.resumeDataUri, // Ensure resumeDataUri is always passed
+        resumeDataUri: sessionSetup.resumeDataUri,
         userSkills: sessionSetup.userSkills,
         targetCompanyName: sessionSetup.targetCompanyName,
         jobContext: sessionSetup.jobContext,
@@ -199,9 +240,68 @@ export default function MockInterviewSessionPage() {
     };
     await handleInterviewTurn(endSessionInput);
     setIsLoading(false);
+    router.push('/mock-interview'); // Redirect after AI confirms end
   };
 
-  if (!isInterviewInitialized && !error && !sessionSetup) { // Added !sessionSetup to condition
+  const toggleRecording = () => {
+    if (typeof window === 'undefined') return;
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognitionAPI) {
+      toast({ title: "Speech Recognition Not Supported", description: "Your browser doesn't support speech-to-text.", variant: "destructive" });
+      return;
+    }
+
+    if (isRecording && speechRecognitionRef.current) {
+      speechRecognitionRef.current.stop();
+      setIsRecording(false);
+    } else {
+      speechRecognitionRef.current = new SpeechRecognitionAPI();
+      speechRecognitionRef.current.continuous = false;
+      speechRecognitionRef.current.interimResults = true;
+      speechRecognitionRef.current.lang = 'en-US';
+
+      let finalTranscript = answerForm.getValues('answer') || '';
+
+      speechRecognitionRef.current.onstart = () => {
+        setIsRecording(true);
+        toast({ title: "Listening...", description: "Start speaking your answer." });
+      };
+
+      speechRecognitionRef.current.onresult = (event) => {
+        let interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript + '. ';
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        answerForm.setValue('answer', finalTranscript + interimTranscript);
+      };
+
+      speechRecognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+        toast({ title: "Speech Error", description: `Error: ${event.error}. Try again or type.`, variant: "destructive" });
+        setIsRecording(false);
+      };
+
+      speechRecognitionRef.current.onend = () => {
+        setIsRecording(false);
+        if (finalTranscript.trim()) {
+           answerForm.setValue('answer', finalTranscript.trim()); // Ensure final set
+        }
+        toast({ title: "Recording Ended" });
+      };
+      
+      finalTranscript = answerForm.getValues('answer') || ''; // Capture current text before starting
+      if (finalTranscript && !finalTranscript.endsWith(' ')) finalTranscript += ' ';
+
+      speechRecognitionRef.current.start();
+    }
+  };
+
+  if (!isInterviewInitialized && !error && !sessionSetup) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)]">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -220,7 +320,7 @@ export default function MockInterviewSessionPage() {
               <Brain className="h-7 w-7 text-primary" />
               <CardTitle className="text-2xl">AI Mock Interview Session</CardTitle>
             </div>
-            <Button onClick={handleEndInterview} variant="outline" size="sm" disabled={isLoading || isSessionOver}>
+            <Button onClick={handleEndInterview} variant="outline" size="sm" disabled={isLoading}> {/* Allow ending even if session is over */}
               <StopCircle className="mr-2 h-4 w-4" /> End Interview
             </Button>
           </div>
@@ -238,7 +338,12 @@ export default function MockInterviewSessionPage() {
                   <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5" /></AvatarFallback>
                 </Avatar>
                 <div className="bg-muted p-3 rounded-lg shadow-sm max-w-[85%]">
-                  <p className="font-semibold text-sm text-primary">AI Coach:</p>
+                  <p className="font-semibold text-sm text-primary flex items-center gap-1">
+                    AI Coach:
+                    <button onClick={() => speakText(turn.question)} title="Speak this question" className="text-primary/70 hover:text-primary">
+                        <Volume2 className="h-4 w-4"/>
+                    </button>
+                  </p>
                   <p className="text-sm whitespace-pre-wrap">{turn.question}</p>
                 </div>
               </div>
@@ -263,7 +368,12 @@ export default function MockInterviewSessionPage() {
                      <AvatarFallback className="bg-accent text-accent-foreground"><Bot className="h-5 w-5" /></AvatarFallback>
                   </Avatar>
                   <div className="bg-accent/10 border border-accent/30 p-3 rounded-lg shadow-sm max-w-[85%]">
-                     <p className="font-semibold text-sm text-accent">AI Feedback:</p>
+                     <p className="font-semibold text-sm text-accent flex items-center gap-1">
+                        AI Feedback:
+                        <button onClick={() => speakText(turn.feedback!)} title="Speak this feedback" className="text-accent/70 hover:text-accent">
+                            <Volume2 className="h-4 w-4"/>
+                        </button>
+                    </p>
                      <p className="text-sm whitespace-pre-wrap">{turn.feedback}</p>
                   </div>
                 </div>
@@ -272,20 +382,23 @@ export default function MockInterviewSessionPage() {
             </React.Fragment>
           ))}
           
-          {/* Display current AI question if it's a new one and not part of history yet (or initial question) */}
           {currentAiQuestion && (
                <div className="flex items-start gap-3 my-3">
                   <Avatar className="h-9 w-9 border border-primary/30">
                      <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5" /></AvatarFallback>
                   </Avatar>
                   <div className="bg-muted p-3 rounded-lg shadow-sm max-w-[85%]">
-                     <p className="font-semibold text-sm text-primary">AI Coach Asks:</p>
+                     <p className="font-semibold text-sm text-primary flex items-center gap-1">
+                        AI Coach Asks:
+                         <button onClick={() => speakText(currentAiQuestion)} title="Speak this question" className="text-primary/70 hover:text-primary">
+                            <Volume2 className="h-4 w-4"/>
+                        </button>
+                    </p>
                      <p className="text-sm whitespace-pre-wrap">{currentAiQuestion}</p>
                   </div>
                 </div>
           )}
           
-          {/* Loading indicator for AI response */}
           {isLoading && (
               <div className="flex items-start gap-3 my-3">
                   <Avatar className="h-9 w-9 border border-primary/30">
@@ -297,14 +410,18 @@ export default function MockInterviewSessionPage() {
               </div>
           )}
 
-          {/* Session over message */}
           {isSessionOver && aiFullResponse && !currentAiQuestion && (
                <div className="flex items-start gap-3 my-3">
                   <Avatar className="h-9 w-9 border border-green-600/50">
                      <AvatarFallback className="bg-green-600 text-white"><Bot className="h-5 w-5" /></AvatarFallback>
                   </Avatar>
                   <div className="bg-green-100 border border-green-300 p-3 rounded-lg shadow-sm max-w-[85%]">
-                     <p className="font-semibold text-sm text-green-700">Session Ended:</p>
+                     <p className="font-semibold text-sm text-green-700 flex items-center gap-1">
+                        Session Ended:
+                        <button onClick={() => speakText(aiFullResponse.includes("Here's your next question:") ? aiFullResponse.split("Here's your next question:")[0].trim() : aiFullResponse)} title="Speak this summary" className="text-green-700/70 hover:text-green-700">
+                            <Volume2 className="h-4 w-4"/>
+                        </button>
+                    </p>
                      <p className="text-sm whitespace-pre-wrap">{aiFullResponse.includes("Here's your next question:") ? aiFullResponse.split("Here's your next question:")[0].trim() : aiFullResponse}</p>
                   </div>
                 </div>
@@ -323,23 +440,35 @@ export default function MockInterviewSessionPage() {
                       <FormLabel className="text-md sr-only">Your Answer to: &quot;{currentAiQuestion.length > 70 ? currentAiQuestion.substring(0,70) + "..." : currentAiQuestion}&quot;</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Type your answer here..."
+                          placeholder="Type or speak your answer here..."
                           className="min-h-[100px] text-base"
                           {...field}
-                          disabled={isLoading}
+                          disabled={isLoading || isRecording}
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <Button type="submit" disabled={isLoading} className="w-full text-md py-3 px-5">
-                  {isLoading ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
-                  ) : (
-                    <><Send className="mr-2 h-4 w-4" /> Submit Answer</>
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                    <Button 
+                        type="button" 
+                        onClick={toggleRecording} 
+                        variant={isRecording ? "destructive" : "outline"}
+                        size="icon"
+                        disabled={isLoading}
+                        title={isRecording ? "Stop Recording" : "Record Answer"}
+                    >
+                        {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                    </Button>
+                    <Button type="submit" disabled={isLoading || isRecording} className="flex-grow text-md py-3 px-5">
+                    {isLoading ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
+                    ) : (
+                        <><Send className="mr-2 h-4 w-4" /> Submit Answer</>
+                    )}
+                    </Button>
+                </div>
               </form>
             </Form>
           </CardFooter>
