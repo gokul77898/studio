@@ -65,11 +65,9 @@ export default function MockInterviewSessionPage() {
   const speakText = useCallback((text: string) => {
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       const utterance = new SpeechSynthesisUtterance(text);
-      // Optionally configure voice, rate, pitch here if needed
-      // utterance.voice = window.speechSynthesis.getVoices()[0]; // Example
       utterance.lang = 'en-US';
       utterance.rate = 0.9;
-      window.speechSynthesis.cancel(); // Cancel any previous speech
+      window.speechSynthesis.cancel(); 
       window.speechSynthesis.speak(utterance);
     }
   }, []);
@@ -101,7 +99,7 @@ export default function MockInterviewSessionPage() {
         });
       } else {
         toast({ title: "No Resume Data", description: "Resume data is missing. Please set up your mock interview again.", variant: "destructive" });
-        localStorage.removeItem('mockInterviewSetup');
+        localStorage.removeItem('mockInterviewSetup'); // Also remove if data is invalid
         router.push('/mock-interview');
       }
     } else {
@@ -161,8 +159,10 @@ export default function MockInterviewSessionPage() {
       if (result.isSessionOver) {
         setIsSessionOver(true);
         toast({ title: "Mock Interview Session Ended.", description: "Hope this was helpful!" });
-        if (!input.endSessionSignal) { // If AI ended it naturally, wait a bit then redirect
-          setTimeout(() => router.push('/mock-interview'), 3000);
+        if (!input.endSessionSignal && !isInitialCall) { 
+          setTimeout(() => router.push('/mock-interview'), 5000); // Increased delay
+        } else if (input.endSessionSignal) {
+            router.push('/mock-interview'); // Immediate redirect if user initiated end
         }
       } else if (!isInitialCall){
         toast({ title: "Answer Submitted!", description: "AI is providing feedback and the next question." });
@@ -192,7 +192,7 @@ export default function MockInterviewSessionPage() {
         speechRecognitionRef.current.stop();
         setIsRecording(false);
     }
-    window.speechSynthesis.cancel(); // Stop any ongoing AI speech
+    window.speechSynthesis.cancel(); 
 
     const userTurnForHistory: MockInterviewTurn = {
       question: currentAiQuestion,
@@ -214,16 +214,17 @@ export default function MockInterviewSessionPage() {
   };
 
   const handleEndInterview = async () => {
-    if (!sessionSetup) {
-      router.push('/mock-interview'); // No setup, just redirect
-      return;
-    }
     if (isRecording && speechRecognitionRef.current) {
         speechRecognitionRef.current.stop();
         setIsRecording(false);
     }
     window.speechSynthesis.cancel();
 
+    if (!sessionSetup) {
+      router.push('/mock-interview'); 
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
     setAiFullResponse(null);
@@ -235,12 +236,12 @@ export default function MockInterviewSessionPage() {
         jobContext: sessionSetup.jobContext,
         interviewHistory: interviewHistory,
         lastAiQuestion: currentAiQuestion || undefined,
-        userAnswer: "(User clicked 'End Interview')", 
+        userAnswer: interviewHistory.length > 0 && interviewHistory.slice(-1)[0].answer ? interviewHistory.slice(-1)[0].answer : "(User clicked 'End Interview')", 
         endSessionSignal: true,
     };
-    await handleInterviewTurn(endSessionInput);
+    await handleInterviewTurn(endSessionInput, false); // Pass false for isInitialCall
     setIsLoading(false);
-    router.push('/mock-interview'); // Redirect after AI confirms end
+    // Redirect is handled within handleInterviewTurn if endSessionSignal is true
   };
 
   const toggleRecording = () => {
@@ -249,55 +250,76 @@ export default function MockInterviewSessionPage() {
 
     if (!SpeechRecognitionAPI) {
       toast({ title: "Speech Recognition Not Supported", description: "Your browser doesn't support speech-to-text.", variant: "destructive" });
+      console.warn("Speech Recognition API not supported by this browser.");
       return;
     }
 
     if (isRecording && speechRecognitionRef.current) {
+      console.log("[SpeechRec] Stopping recording manually.");
       speechRecognitionRef.current.stop();
-      setIsRecording(false);
+      // isRecording will be set to false in onend
     } else {
       speechRecognitionRef.current = new SpeechRecognitionAPI();
-      speechRecognitionRef.current.continuous = false;
+      speechRecognitionRef.current.continuous = false; // Stop after first phrase, or make true for longer dictation
       speechRecognitionRef.current.interimResults = true;
       speechRecognitionRef.current.lang = 'en-US';
 
-      let finalTranscript = answerForm.getValues('answer') || '';
+      let currentAnswerText = answerForm.getValues('answer') || '';
+      console.log("[SpeechRec] Starting new recording. Initial text: ", currentAnswerText);
+
 
       speechRecognitionRef.current.onstart = () => {
+        console.log("[SpeechRec] Event: onstart - Recording started.");
         setIsRecording(true);
         toast({ title: "Listening...", description: "Start speaking your answer." });
       };
 
       speechRecognitionRef.current.onresult = (event) => {
+        console.log("[SpeechRec] Event: onresult", event.results);
         let interimTranscript = '';
+        let finalTranscriptSegment = '';
+
         for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcriptPart = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript + '. ';
+            finalTranscriptSegment += transcriptPart + '. ';
           } else {
-            interimTranscript += event.results[i][0].transcript;
+            interimTranscript += transcriptPart;
           }
         }
-        answerForm.setValue('answer', finalTranscript + interimTranscript);
+        
+        // Append final segments to the existing text, then add current interim
+        currentAnswerText += finalTranscriptSegment;
+        answerForm.setValue('answer', currentAnswerText + interimTranscript);
+        console.log(`[SpeechRec] Interim: "${interimTranscript}", Final segment for this result: "${finalTranscriptSegment}", Full current text: "${currentAnswerText + interimTranscript}"`);
       };
 
       speechRecognitionRef.current.onerror = (event) => {
-        console.error('Speech recognition error', event.error);
+        console.error('[SpeechRec] Event: onerror - Speech recognition error:', event.error, event.message);
         toast({ title: "Speech Error", description: `Error: ${event.error}. Try again or type.`, variant: "destructive" });
-        setIsRecording(false);
+        setIsRecording(false); // Ensure state is reset
       };
 
       speechRecognitionRef.current.onend = () => {
+        console.log("[SpeechRec] Event: onend - Recording ended. Final accumulated text in form:", currentAnswerText.trim());
         setIsRecording(false);
-        if (finalTranscript.trim()) {
-           answerForm.setValue('answer', finalTranscript.trim()); // Ensure final set
-        }
+        answerForm.setValue('answer', currentAnswerText.trim()); 
         toast({ title: "Recording Ended" });
       };
       
-      finalTranscript = answerForm.getValues('answer') || ''; // Capture current text before starting
-      if (finalTranscript && !finalTranscript.endsWith(' ')) finalTranscript += ' ';
-
-      speechRecognitionRef.current.start();
+      // Ensure there's a space if appending to existing text
+      if (currentAnswerText && !currentAnswerText.endsWith(' ')) {
+        currentAnswerText += ' ';
+      }
+      
+      try {
+        console.log("[SpeechRec] Attempting to start speech recognition...");
+        speechRecognitionRef.current.start();
+      } catch (e) {
+        console.error("[SpeechRec] Error starting speech recognition:", e);
+        toast({ title: "Could Not Start Recording", description: "Please ensure microphone permissions are granted and try again.", variant: "destructive"});
+        setIsRecording(false);
+      }
     }
   };
 
@@ -320,7 +342,7 @@ export default function MockInterviewSessionPage() {
               <Brain className="h-7 w-7 text-primary" />
               <CardTitle className="text-2xl">AI Mock Interview Session</CardTitle>
             </div>
-            <Button onClick={handleEndInterview} variant="outline" size="sm" disabled={isLoading}> {/* Allow ending even if session is over */}
+            <Button onClick={handleEndInterview} variant="outline" size="sm" disabled={isLoading && !isSessionOver}> 
               <StopCircle className="mr-2 h-4 w-4" /> End Interview
             </Button>
           </div>
@@ -399,7 +421,7 @@ export default function MockInterviewSessionPage() {
                 </div>
           )}
           
-          {isLoading && (
+          {isLoading && isInterviewInitialized && ( // Only show AI thinking if interview has started
               <div className="flex items-start gap-3 my-3">
                   <Avatar className="h-9 w-9 border border-primary/30">
                      <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5" /></AvatarFallback>
