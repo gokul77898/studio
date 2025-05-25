@@ -12,13 +12,15 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as FormDescriptionComponent } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, AlertTriangle, UploadCloud, Goal, Map, Briefcase, TrendingUp, DollarSign, Clock, ListChecks, Sparkles, BookOpen, Star } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, UploadCloud, Goal, Map, Briefcase, TrendingUp, DollarSign, Clock, ListChecks, Sparkles, BookOpen, Star, UserCheck } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { predictCareerPaths, type CareerPathInput, type CareerPathOutput, type CareerPathSuggestion } from '@/ai/flows/careerPathAdvisorFlow';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Import Select components
+import { EmploymentPreferenceSchema, type EmploymentPreference } from '@/ai/schemas/careerPathAdvisorSchema';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB for resumes
 const ACCEPTED_FILE_TYPES = [
@@ -30,6 +32,9 @@ const ACCEPTED_FILE_TYPES = [
   "text/markdown"
 ];
 
+const employmentPreferenceOptions = ["Fresher", "Internship", "Full-time", "Part-time", "Contract"] as const;
+
+
 const careerPathFormSchema = z.object({
   resumeFile: z
     .instanceof(File, { message: "Please upload your resume." })
@@ -39,6 +44,7 @@ const careerPathFormSchema = z.object({
       "Invalid file type. Accepted: PDF, DOC, DOCX, TXT, RTF, MD."
     ),
   userGoals: z.string().optional(),
+  employmentPreference: z.string().optional(), // Will be validated against enum in flow
 });
 
 type CareerPathFormValues = z.infer<typeof careerPathFormSchema>;
@@ -62,6 +68,7 @@ export default function CareerPathAdvisorPage() {
     defaultValues: {
       resumeFile: undefined,
       userGoals: '',
+      employmentPreference: '',
     }
   });
 
@@ -85,6 +92,7 @@ export default function CareerPathAdvisorPage() {
       const input: CareerPathInput = {
         resumeDataUri: resumeDataUri,
         userGoals: data.userGoals || undefined,
+        employmentPreference: data.employmentPreference ? data.employmentPreference as EmploymentPreference : undefined,
       };
       const result = await predictCareerPaths(input);
       setPredictionResult(result);
@@ -162,7 +170,7 @@ export default function CareerPathAdvisorPage() {
             <CardTitle className="text-3xl">AI Career Path Advisor</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Upload your resume and optionally describe your career goals. The AI will analyze your profile and suggest potential future career paths, along with high-level guidance.
+            Upload your resume, and optionally describe your career goals and current stage/desired employment type. The AI will analyze your profile and suggest potential future career paths, along with high-level guidance.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -202,6 +210,36 @@ export default function CareerPathAdvisorPage() {
                   </FormItem>
                 )}
               />
+               <FormField
+                control={form.control}
+                name="employmentPreference"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg flex items-center gap-1">
+                      <UserCheck className="h-5 w-5 text-primary" /> Your Current Stage / Desired Employment Type (Optional)
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your stage or preference" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="">Any / Not Specified</SelectItem>
+                        {employmentPreferenceOptions.map(type => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescriptionComponent>
+                      Helps AI tailor suggestions (e.g., entry-level for 'Fresher').
+                    </FormDescriptionComponent>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="userGoals"
@@ -211,7 +249,7 @@ export default function CareerPathAdvisorPage() {
                     <FormControl>
                       <Textarea
                         placeholder="e.g., 'I want to transition into a leadership role in tech within 5 years,' 'I'm passionate about sustainable energy and want to apply my data skills there,' 'Looking for a more creative role that uses my design and coding abilities.'"
-                        className="min-h-[150px] text-base"
+                        className="min-h-[100px] text-base"
                         {...field}
                       />
                     </FormControl>
@@ -263,14 +301,14 @@ export default function CareerPathAdvisorPage() {
                 <CardTitle className="text-3xl">AI-Suggested Career Paths</CardTitle>
               </div>
               <CardDescription>
-                Based on your resume and stated goals (if provided), here are some potential career paths the AI suggests exploring. These are high-level ideas to inspire your research and planning.
+                Based on your resume and stated preferences, here are some potential career paths the AI suggests exploring. These are high-level ideas to inspire your research and planning.
               </CardDescription>
           </CardHeader>
           <CardContent>
             {predictionResult.strongestFitAnalysis && predictionResult.strongestFitAnalysis.recommendedPathTitle && (
               <Card className="mb-6 border-accent bg-accent/5 p-4 shadow-sm">
                 <CardTitle className="text-xl mb-2 flex items-center gap-2 text-accent">
-                  <Star className="h-6 w-6"/> AI's Strongest Fit Recommendation
+                  <Star className="h-6 w-6"/> AI&apos;s Strongest Fit Recommendation
                 </CardTitle>
                 <p className="text-lg font-semibold text-accent">{predictionResult.strongestFitAnalysis.recommendedPathTitle}</p>
                 <p className="text-sm text-foreground/80 mt-1">{predictionResult.strongestFitAnalysis.reasoning}</p>
@@ -290,4 +328,3 @@ export default function CareerPathAdvisorPage() {
     </div>
   );
 }
-

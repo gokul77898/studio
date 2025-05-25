@@ -4,6 +4,9 @@
  */
 import { z } from 'zod';
 
+export const EmploymentPreferenceSchema = z.enum(['Fresher', 'Internship', 'Full-time', 'Part-time', 'Contract']);
+export type EmploymentPreference = z.infer<typeof EmploymentPreferenceSchema>;
+
 export const CareerPathInputSchema = z.object({
   resumeDataUri: z
     .string()
@@ -16,6 +19,9 @@ export const CareerPathInputSchema = z.object({
     .describe(
       'A textual description of the user\'s career goals, interests, or aspirations. (Optional)'
     ),
+  employmentPreference: EmploymentPreferenceSchema.optional().describe(
+    "The user's current career stage or desired employment type. (Optional)"
+  ),
 });
 export type CareerPathInput = z.infer<typeof CareerPathInputSchema>;
 

@@ -14,13 +14,14 @@ import {
   CareerPathOutputSchema,
   type CareerPathInput,
   type CareerPathOutput,
+  type EmploymentPreference, // Import EmploymentPreference type
 } from '../schemas/careerPathAdvisorSchema';
 
 const careerPathPredictionPrompt = ai.definePrompt({
   name: 'careerPathPredictionPrompt',
   input: { schema: CareerPathInputSchema },
   output: { schema: CareerPathOutputSchema },
-  prompt: `You are an expert Career Strategist AI. Your task is to analyze the user's resume completely and their stated career goals/aspirations (if provided) to suggest 3-5 viable future career paths.
+  prompt: `You are an expert Career Strategist AI. Your task is to analyze the user's resume completely, their stated career goals/aspirations (if provided), and their employment preference (if provided) to suggest 3-5 viable future career paths.
 
 User's Resume (analyze thoroughly for all skills, experiences, roles, education, and projects):
 {{media url=resumeDataUri}}
@@ -28,27 +29,35 @@ User's Resume (analyze thoroughly for all skills, experiences, roles, education,
 {{#if userGoals}}
 User's Stated Goals/Aspirations:
 "{{{userGoals}}}"
-Base your suggestions primarily on aligning the resume with these goals.
+Base your suggestions primarily on aligning the resume with these goals, considering their employment preference.
 {{else}}
 User's Stated Goals/Aspirations: Not provided.
-Base your suggestions primarily on the skills, experience, and potential progression evident from the resume.
+Base your suggestions primarily on the skills, experience, and potential progression evident from the resume, considering their employment preference.
+{{/if}}
+
+{{#if employmentPreference}}
+User's Employment Preference / Current Stage: {{{employmentPreference}}}
+Consider this strongly. For 'Fresher' or 'Internship', focus on entry-level roles, internships, or paths suitable for starting a career. For 'Full-time', 'Part-time', or 'Contract', tailor suggestions for roles matching those types, aligned with their experience level from the resume.
+{{else}}
+User's Employment Preference / Current Stage: Not specified.
+Infer appropriate career levels from the resume.
 {{/if}}
 
 Instructions for Career Path Suggestions:
-1.  **Analyze Thoroughly and Comprehensively:** Carefully consider all aspects of the user's current profile from their resume, including all listed skills (technical and soft), past roles, responsibilities, achievements, educational background, and any projects mentioned. If user goals are provided, deeply reflect on them. If not, infer potential directions from the comprehensive analysis of the resume itself.
-2.  **Suggest Viable Paths:** Based on the analysis, propose 3 to 5 distinct and realistic career paths that the user could pursue. These paths should be a logical progression or a feasible pivot based on the full resume content.
+1.  **Analyze Thoroughly and Comprehensively:** Carefully consider all aspects of the user's current profile from their resume, including all listed skills (technical and soft), past roles, responsibilities, achievements, educational background, and any projects mentioned. If user goals are provided, deeply reflect on them. Factor in their employment preference when shaping path suggestions.
+2.  **Suggest Viable Paths:** Based on the analysis, propose 3 to 5 distinct and realistic career paths that the user could pursue. These paths should be a logical progression or a feasible pivot based on the full resume content and stated preferences.
 3.  **For Each Suggested Path, Provide:**
-    *   pathTitle: A clear and concise title for the career path (e.g., "Senior Data Scientist specializing in NLP", "Cybersecurity Analyst (Cloud Focus)", "Product Manager for AI Solutions").
-    *   description: A brief explanation (2-3 sentences) of what the role entails and why it might align with the user's profile and/or goals (if goals were provided).
+    *   pathTitle: A clear and concise title for the career path (e.g., "Senior Data Scientist specializing in NLP", "Cybersecurity Analyst (Cloud Focus)", "Product Manager for AI Solutions", "Entry-Level Software Developer").
+    *   description: A brief explanation (2-3 sentences) of what the role entails and why it might align with the user's profile, goals (if provided), and employment preference.
     *   roadmap: A high-level textual roadmap. This should be an array of strings, with each string representing a step or key consideration. Include:
-        *   Key skills or knowledge areas the user might need to develop or strengthen, drawing connections to their existing skillset *as identified from their resume*.
-        *   Potential types of certifications, courses, or further education that could be beneficial (be general, e.g., "Advanced Python certification," "Master's in Data Science," "Project Management Professional (PMP)"), considering any existing credentials from the resume.
+        *   Key skills or knowledge areas the user might need to develop or strengthen, drawing connections to their existing skillset *as identified from their resume*. Consider the employment preference for skill depth.
+        *   Potential types of certifications, courses, or further education that could be beneficial (be general, e.g., "Advanced Python certification," "Master's in Data Science," "Project Management Professional (PMP)"), considering any existing credentials from the resume and relevance to the employment preference.
         *   A brief conceptual outlook on the role or industry.
     *   conceptualSkills (optional array of strings): List 3-5 core technical or soft skills central to this path, especially those that build upon or complement skills found in the resume.
     *   conceptualCertifications (optional array of strings): List 1-3 general types of certifications or learning paths relevant to this career.
     *   salaryOutlookGeneral (optional string): Provide a very general, qualitative statement about the salary potential (e.g., "Strong earning potential with experience," "Typically offers competitive salaries," "Varies widely based on specialization"). Do NOT give specific numbers.
     *   timeEstimateGeneral (optional string): Provide a very general, qualitative statement about the potential time commitment for transition or establishment (e.g., "May require 1-2 years of focused skill development," "Transition possible within 6-12 months for experienced candidates," "Long-term path requiring continuous learning"). Do NOT give specific years unless it's a very broad range like "several years."
-4.  **Strongest Fit Recommendation (Optional):** After detailing the 3-5 paths, if one or two paths stand out as a particularly strong alignment based on the comprehensive analysis of the resume and goals, populate the 'strongestFitAnalysis' field. Include the 'recommendedPathTitle' (from the paths you suggested) and 'reasoning' (a 1-2 sentence explanation for why it's a strong fit). If no single path particularly stands out more than others, you can omit this field or leave it empty. Do not provide a numerical "success rate."
+4.  **Strongest Fit Recommendation (Optional):** After detailing the 3-5 paths, if one or two paths stand out as a particularly strong alignment based on the comprehensive analysis of the resume, goals, and employment preference, populate the 'strongestFitAnalysis' field. Include the 'recommendedPathTitle' (from the paths you suggested) and 'reasoning' (a 1-2 sentence explanation for why it's a strong fit). If no single path particularly stands out more than others, you can omit this field or leave it empty. Do not provide a numerical "success rate."
 5.  **Tone:** Be encouraging, insightful, and realistic.
 6.  **Output Format:** Strictly adhere to the JSON output schema defined. Ensure the 'suggestedPaths' array contains 3-5 items.
 
@@ -60,6 +69,7 @@ Do not invent information not deducible from the resume or common career knowled
 The "roadmap" should offer actionable, albeit high-level, advice, directly relevant to bridging any gaps or leveraging strengths identified from the user's specific resume.
 The salary and time estimates must be very general and qualitative due to the lack of precise real-time market data.
 Ensure that your analysis of the resume is complete before suggesting paths.
+Ensure suggestions align with the user's employment preference if provided.
 `,
   config: {
     temperature: 0.7, // Allow for some creative but grounded suggestions
@@ -81,7 +91,8 @@ const careerPathAdvisorFlow = ai.defineFlow(
   async (input) => {
     const promptInput = {
       resumeDataUri: input.resumeDataUri,
-      userGoals: input.userGoals || undefined, // Pass undefined if empty
+      userGoals: input.userGoals || undefined,
+      employmentPreference: input.employmentPreference || undefined,
     };
     const { output } = await careerPathPredictionPrompt(promptInput);
     if (!output || !output.suggestedPaths || output.suggestedPaths.length === 0) {
@@ -94,6 +105,7 @@ const careerPathAdvisorFlow = ai.defineFlow(
           roadmap: [
             "Ensure your resume is clear and provides sufficient detail covering all your skills and experiences.",
             "If you have goals, consider adding them for more tailored suggestions next time.",
+            "Consider specifying your employment preference (e.g., Fresher, Full-time) if applicable.",
             "Research current job market trends in areas that interest you based on your resume.",
             "Seek advice from career counselors or mentors in your field."
           ],
