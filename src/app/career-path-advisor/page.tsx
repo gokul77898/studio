@@ -272,8 +272,8 @@ export default function CareerPathAdvisorPage() {
                 <CardTitle className="text-xl mb-2 flex items-center gap-2 text-accent">
                   <Star className="h-6 w-6"/> AI's Strongest Fit Recommendation
                 </CardTitle>
-                <p className="text-lg font-semibold text-accent-foreground/90">{predictionResult.strongestFitAnalysis.recommendedPathTitle}</p>
-                <p className="text-sm text-accent-foreground/80 mt-1">{predictionResult.strongestFitAnalysis.reasoning}</p>
+                <p className="text-lg font-semibold text-accent">{predictionResult.strongestFitAnalysis.recommendedPathTitle}</p>
+                <p className="text-sm text-foreground/80 mt-1">{predictionResult.strongestFitAnalysis.reasoning}</p>
                 <Separator className="my-3 bg-accent/20"/>
                 <p className="text-xs text-muted-foreground">Note: This is a qualitative assessment by the AI. Explore all suggested paths further.</p>
               </Card>
@@ -290,3 +290,4 @@ export default function CareerPathAdvisorPage() {
     </div>
   );
 }
+
