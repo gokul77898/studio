@@ -6,4 +6,5 @@ import './flows/resumeAnalyzerFlow';
 import './flows/generateResumeFlow';
 import './flows/generateCoverLetterFlow';
 import './flows/skillGapAnalysisFlow';
-import './flows/mockInterviewFlow'; // Added new flow
+import './flows/mockInterviewFlow';
+import './flows/careerPathAdvisorFlow'; // Added new flow

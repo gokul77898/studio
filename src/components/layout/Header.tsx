@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Briefcase, Wand2, Lightbulb, FileScan, Mail, Brain, MessageSquare, Menu, X, List } from 'lucide-react';
+import { Briefcase, Wand2, Lightbulb, FileScan, Mail, Brain, MessageSquare, Menu, X, List, Map } from 'lucide-react'; // Added Map
 import { useState } from 'react';
 
 export function Header() {
@@ -14,6 +14,7 @@ export function Header() {
     { href: "/resume-analyzer", text: "Resume AI", icon: FileScan },
     { href: "/cover-letter-generator", text: "Cover Letter AI", icon: Mail },
     { href: "/skill-gap-analyzer", text: "Skill Gap AI", icon: Brain },
+    { href: "/career-path-advisor", text: "Career Path AI", icon: Map }, // New Link
     { href: "/mock-interview", text: "Mock Interview", icon: MessageSquare },
     { href: "/guidance", text: "Guidance", icon: Lightbulb },
   ];
@@ -31,7 +32,7 @@ export function Header() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-2 md:gap-3 text-xs sm:text-sm flex-wrap justify-end">
+        <nav className="hidden md:flex items-center gap-1 md:gap-2 text-xs sm:text-sm flex-wrap justify-end">
           {navLinks.map(link => (
             <Link
               key={link.href}
