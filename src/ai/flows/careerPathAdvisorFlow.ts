@@ -41,8 +41,8 @@ Instructions for Career Path Suggestions:
     *   pathTitle: A clear and concise title for the career path (e.g., "Senior Data Scientist specializing in NLP", "Cybersecurity Analyst (Cloud Focus)", "Product Manager for AI Solutions").
     *   description: A brief explanation (2-3 sentences) of what the role entails and why it might align with the user's profile and/or goals (if goals were provided).
     *   roadmap: A high-level textual roadmap. This should be an array of strings, with each string representing a step or key consideration. Include:
-        *   Key skills or knowledge areas the user might need to develop or strengthen, drawing connections to their existing skillset.
-        *   Potential types of certifications, courses, or further education that could be beneficial (be general, e.g., "Advanced Python certification," "Master's in Data Science," "Project Management Professional (PMP)").
+        *   Key skills or knowledge areas the user might need to develop or strengthen, drawing connections to their existing skillset *as identified from their resume*.
+        *   Potential types of certifications, courses, or further education that could be beneficial (be general, e.g., "Advanced Python certification," "Master's in Data Science," "Project Management Professional (PMP)"), considering any existing credentials from the resume.
         *   A brief conceptual outlook on the role or industry.
     *   conceptualSkills (optional array of strings): List 3-5 core technical or soft skills central to this path, especially those that build upon or complement skills found in the resume.
     *   conceptualCertifications (optional array of strings): List 1-3 general types of certifications or learning paths relevant to this career.
@@ -51,12 +51,12 @@ Instructions for Career Path Suggestions:
 4.  **Tone:** Be encouraging, insightful, and realistic.
 5.  **Output Format:** Strictly adhere to the JSON output schema defined. Ensure the 'suggestedPaths' array contains 3-5 items.
 
-Example for a roadmap item: "Focus on advanced Python programming and libraries like TensorFlow/PyTorch."
+Example for a roadmap item: "Focus on advanced Python programming and libraries like TensorFlow/PyTorch, building on your existing Python experience evident in the resume."
 Example for a conceptual skill: "Statistical Analysis and Modeling"
 Example for a conceptual certification: "AWS Certified Solutions Architect"
 
 Do not invent information not deducible from the resume or common career knowledge.
-The "roadmap" should offer actionable, albeit high-level, advice.
+The "roadmap" should offer actionable, albeit high-level, advice, directly relevant to bridging any gaps or leveraging strengths identified from the user's specific resume.
 The salary and time estimates must be very general and qualitative due to the lack of precise real-time market data.
 Ensure that your analysis of the resume is complete before suggesting paths.
 `,
