@@ -19,7 +19,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { predictCareerPaths, type CareerPathInput, type CareerPathOutput, type CareerPathSuggestion } from '@/ai/flows/careerPathAdvisorFlow';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Import Select components
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmploymentPreferenceSchema, type EmploymentPreference } from '@/ai/schemas/careerPathAdvisorSchema';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB for resumes
@@ -33,6 +33,7 @@ const ACCEPTED_FILE_TYPES = [
 ];
 
 const employmentPreferenceOptions = ["Fresher", "Internship", "Full-time", "Part-time", "Contract"] as const;
+const ANY_PREFERENCE_VALUE = "__any_preference__";
 
 
 const careerPathFormSchema = z.object({
@@ -44,7 +45,7 @@ const careerPathFormSchema = z.object({
       "Invalid file type. Accepted: PDF, DOC, DOCX, TXT, RTF, MD."
     ),
   userGoals: z.string().optional(),
-  employmentPreference: z.string().optional(), // Will be validated against enum in flow
+  employmentPreference: z.string().optional(),
 });
 
 type CareerPathFormValues = z.infer<typeof careerPathFormSchema>;
@@ -218,14 +219,19 @@ export default function CareerPathAdvisorPage() {
                     <FormLabel className="text-lg flex items-center gap-1">
                       <UserCheck className="h-5 w-5 text-primary" /> Your Current Stage / Desired Employment Type (Optional)
                     </FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select 
+                        onValueChange={(selectedValue) => {
+                            field.onChange(selectedValue === ANY_PREFERENCE_VALUE ? "" : selectedValue);
+                        }} 
+                        value={field.value || ANY_PREFERENCE_VALUE}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select your stage or preference" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Any / Not Specified</SelectItem>
+                        <SelectItem value={ANY_PREFERENCE_VALUE}>Any / Not Specified</SelectItem>
                         {employmentPreferenceOptions.map(type => (
                           <SelectItem key={type} value={type}>
                             {type}
