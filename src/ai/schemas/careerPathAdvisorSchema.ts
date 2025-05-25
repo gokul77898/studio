@@ -12,9 +12,10 @@ export const CareerPathInputSchema = z.object({
     ),
   userGoals: z
     .string()
-    .min(10, { message: "Please describe your goals or aspirations in at least 10 characters." })
+    // .min(10, { message: "Please describe your goals or aspirations in at least 10 characters." }) // Making this optional
+    .optional()
     .describe(
-      'A textual description of the user\'s career goals, interests, or aspirations.'
+      'A textual description of the user\'s career goals, interests, or aspirations. (Optional)'
     ),
 });
 export type CareerPathInput = z.infer<typeof CareerPathInputSchema>;
@@ -40,3 +41,4 @@ export const CareerPathOutputSchema = z.object({
     ),
 });
 export type CareerPathOutput = z.infer<typeof CareerPathOutputSchema>;
+

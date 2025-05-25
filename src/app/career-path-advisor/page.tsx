@@ -29,6 +29,7 @@ const ACCEPTED_FILE_TYPES = [
   "text/markdown"
 ];
 
+// Updated schema to make userGoals optional
 const careerPathFormSchema = z.object({
   resumeFile: z
     .instanceof(File, { message: "Please upload your resume." })
@@ -37,7 +38,7 @@ const careerPathFormSchema = z.object({
       (file) => ACCEPTED_FILE_TYPES.includes(file.type),
       "Invalid file type. Accepted: PDF, DOC, DOCX, TXT, RTF, MD."
     ),
-  userGoals: z.string().min(10, { message: "Please describe your goals or aspirations (min 10 characters)." }),
+  userGoals: z.string().optional(), // No min length required now
 });
 
 type CareerPathFormValues = z.infer<typeof careerPathFormSchema>;
@@ -83,7 +84,7 @@ export default function CareerPathAdvisorPage() {
     try {
       const input: CareerPathInput = {
         resumeDataUri: resumeDataUri,
-        userGoals: data.userGoals,
+        userGoals: data.userGoals || undefined, // Pass undefined if empty
       };
       const result = await predictCareerPaths(input);
       setPredictionResult(result);
@@ -161,7 +162,7 @@ export default function CareerPathAdvisorPage() {
             <CardTitle className="text-3xl">AI Career Path Advisor</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Upload your resume and describe your career goals. The AI will analyze your profile and suggest potential future career paths, along with high-level guidance.
+            Upload your resume and optionally describe your career goals. The AI will analyze your profile and suggest potential future career paths, along with high-level guidance.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -206,7 +207,7 @@ export default function CareerPathAdvisorPage() {
                 name="userGoals"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-lg flex items-center gap-1"><Goal className="h-5 w-5 text-primary" /> Your Career Goals & Aspirations</FormLabel>
+                    <FormLabel className="text-lg flex items-center gap-1"><Goal className="h-5 w-5 text-primary" /> Your Career Goals & Aspirations (Optional)</FormLabel>
                     <FormControl>
                       <Textarea
                         placeholder="e.g., 'I want to transition into a leadership role in tech within 5 years,' 'I'm passionate about sustainable energy and want to apply my data skills there,' 'Looking for a more creative role that uses my design and coding abilities.'"
@@ -215,7 +216,7 @@ export default function CareerPathAdvisorPage() {
                       />
                     </FormControl>
                     <FormDescriptionComponent>
-                      Required. Describe what you're looking for in your career. The more detail, the better the AI can assist.
+                      Describe what you're looking for in your career. Providing goals helps the AI give more tailored suggestions.
                     </FormDescriptionComponent>
                     <FormMessage />
                   </FormItem>
@@ -262,7 +263,7 @@ export default function CareerPathAdvisorPage() {
                 <CardTitle className="text-3xl">AI-Suggested Career Paths</CardTitle>
               </div>
               <CardDescription>
-                Based on your resume and stated goals, here are some potential career paths the AI suggests exploring. These are high-level ideas to inspire your research and planning.
+                Based on your resume and stated goals (if provided), here are some potential career paths the AI suggests exploring. These are high-level ideas to inspire your research and planning.
               </CardDescription>
           </CardHeader>
           <CardContent>
@@ -278,3 +279,4 @@ export default function CareerPathAdvisorPage() {
     </div>
   );
 }
+
