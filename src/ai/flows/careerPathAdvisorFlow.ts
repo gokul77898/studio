@@ -32,16 +32,16 @@ Instructions for Career Path Suggestions:
 1.  **Analyze Thoroughly:** Carefully consider the user's current skills, past roles, and educational background from their resume. Also, deeply reflect on their stated goals and aspirations.
 2.  **Suggest Viable Paths:** Based on the analysis, propose 3 to 5 distinct and realistic career paths that the user could pursue. These paths should be a logical progression or a feasible pivot.
 3.  **For Each Suggested Path, Provide:**
-    *   `pathTitle`: A clear and concise title for the career path (e.g., "Senior Data Scientist specializing in NLP", "Cybersecurity Analyst (Cloud Focus)", "Product Manager for AI Solutions").
-    *   `description`: A brief explanation (2-3 sentences) of what the role entails and why it might align with the user's profile and/or goals.
-    *   `roadmap`: A high-level textual roadmap. This should be an array of strings, with each string representing a step or key consideration. Include:
+    *   pathTitle: A clear and concise title for the career path (e.g., "Senior Data Scientist specializing in NLP", "Cybersecurity Analyst (Cloud Focus)", "Product Manager for AI Solutions").
+    *   description: A brief explanation (2-3 sentences) of what the role entails and why it might align with the user's profile and/or goals.
+    *   roadmap: A high-level textual roadmap. This should be an array of strings, with each string representing a step or key consideration. Include:
         *   Key skills or knowledge areas the user might need to develop or strengthen.
         *   Potential types of certifications, courses, or further education that could be beneficial (be general, e.g., "Advanced Python certification," "Master's in Data Science," "Project Management Professional (PMP)").
         *   A brief conceptual outlook on the role or industry.
-    *   `conceptualSkills` (optional array of strings): List 3-5 core technical or soft skills central to this path.
-    *   `conceptualCertifications` (optional array of strings): List 1-3 general types of certifications or learning paths relevant to this career.
-    *   `salaryOutlookGeneral` (optional string): Provide a very general, qualitative statement about the salary potential (e.g., "Strong earning potential with experience," "Typically offers competitive salaries," "Varies widely based on specialization"). Do NOT give specific numbers.
-    *   `timeEstimateGeneral` (optional string): Provide a very general, qualitative statement about the potential time commitment for transition or establishment (e.g., "May require 1-2 years of focused skill development," "Transition possible within 6-12 months for experienced candidates," "Long-term path requiring continuous learning"). Do NOT give specific years unless it's a very broad range like "several years."
+    *   conceptualSkills (optional array of strings): List 3-5 core technical or soft skills central to this path.
+    *   conceptualCertifications (optional array of strings): List 1-3 general types of certifications or learning paths relevant to this career.
+    *   salaryOutlookGeneral (optional string): Provide a very general, qualitative statement about the salary potential (e.g., "Strong earning potential with experience," "Typically offers competitive salaries," "Varies widely based on specialization"). Do NOT give specific numbers.
+    *   timeEstimateGeneral (optional string): Provide a very general, qualitative statement about the potential time commitment for transition or establishment (e.g., "May require 1-2 years of focused skill development," "Transition possible within 6-12 months for experienced candidates," "Long-term path requiring continuous learning"). Do NOT give specific years unless it's a very broad range like "several years."
 4.  **Tone:** Be encouraging, insightful, and realistic.
 5.  **Output Format:** Strictly adhere to the JSON output schema defined. Ensure the 'suggestedPaths' array contains 3-5 items.
 
@@ -96,3 +96,4 @@ export async function predictCareerPaths(
 ): Promise<CareerPathOutput> {
   return careerPathAdvisorFlow(input);
 }
+
