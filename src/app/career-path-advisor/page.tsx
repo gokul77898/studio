@@ -12,12 +12,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as FormDescriptionComponent } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, AlertTriangle, UploadCloud, Goal, Map, Briefcase, TrendingUp, DollarSign, Clock, ListChecks, Sparkles, BookOpen } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, UploadCloud, Goal, Map, Briefcase, TrendingUp, DollarSign, Clock, ListChecks, Sparkles, BookOpen, Star } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { predictCareerPaths, type CareerPathInput, type CareerPathOutput, type CareerPathSuggestion } from '@/ai/flows/careerPathAdvisorFlow';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB for resumes
 const ACCEPTED_FILE_TYPES = [
@@ -29,7 +30,6 @@ const ACCEPTED_FILE_TYPES = [
   "text/markdown"
 ];
 
-// Updated schema to make userGoals optional
 const careerPathFormSchema = z.object({
   resumeFile: z
     .instanceof(File, { message: "Please upload your resume." })
@@ -38,7 +38,7 @@ const careerPathFormSchema = z.object({
       (file) => ACCEPTED_FILE_TYPES.includes(file.type),
       "Invalid file type. Accepted: PDF, DOC, DOCX, TXT, RTF, MD."
     ),
-  userGoals: z.string().optional(), // No min length required now
+  userGoals: z.string().optional(),
 });
 
 type CareerPathFormValues = z.infer<typeof careerPathFormSchema>;
@@ -84,7 +84,7 @@ export default function CareerPathAdvisorPage() {
     try {
       const input: CareerPathInput = {
         resumeDataUri: resumeDataUri,
-        userGoals: data.userGoals || undefined, // Pass undefined if empty
+        userGoals: data.userGoals || undefined,
       };
       const result = await predictCareerPaths(input);
       setPredictionResult(result);
@@ -187,7 +187,7 @@ export default function CareerPathAdvisorPage() {
                           onChange={(e) => {
                               const file = e.target.files?.[0];
                               onChange(file);
-                              setPredictionResult(null); // Clear previous results on new file
+                              setPredictionResult(null); 
                           }}
                           className="hidden"
                           {...restField}
@@ -267,6 +267,17 @@ export default function CareerPathAdvisorPage() {
               </CardDescription>
           </CardHeader>
           <CardContent>
+            {predictionResult.strongestFitAnalysis && predictionResult.strongestFitAnalysis.recommendedPathTitle && (
+              <Card className="mb-6 border-accent bg-accent/5 p-4 shadow-sm">
+                <CardTitle className="text-xl mb-2 flex items-center gap-2 text-accent">
+                  <Star className="h-6 w-6"/> AI's Strongest Fit Recommendation
+                </CardTitle>
+                <p className="text-lg font-semibold text-accent-foreground/90">{predictionResult.strongestFitAnalysis.recommendedPathTitle}</p>
+                <p className="text-sm text-accent-foreground/80 mt-1">{predictionResult.strongestFitAnalysis.reasoning}</p>
+                <Separator className="my-3 bg-accent/20"/>
+                <p className="text-xs text-muted-foreground">Note: This is a qualitative assessment by the AI. Explore all suggested paths further.</p>
+              </Card>
+            )}
             <Accordion type="single" collapsible className="w-full">
               {predictionResult.suggestedPaths.map((path, index) => renderPathSuggestion(path, index))}
             </Accordion>
@@ -279,4 +290,3 @@ export default function CareerPathAdvisorPage() {
     </div>
   );
 }
-

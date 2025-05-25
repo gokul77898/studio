@@ -12,7 +12,6 @@ export const CareerPathInputSchema = z.object({
     ),
   userGoals: z
     .string()
-    // .min(10, { message: "Please describe your goals or aspirations in at least 10 characters." }) // Making this optional
     .optional()
     .describe(
       'A textual description of the user\'s career goals, interests, or aspirations. (Optional)'
@@ -39,6 +38,9 @@ export const CareerPathOutputSchema = z.object({
     .describe(
       'A list of 3-5 viable future career paths suggested by the AI.'
     ),
+  strongestFitAnalysis: z.object({
+    recommendedPathTitle: z.string().optional().describe("The title of the path the AI considers a particularly strong fit, if any stands out."),
+    reasoning: z.string().optional().describe("The AI's reasoning for why this path is a strong fit, based on the resume and goals."),
+  }).optional().describe("The AI's analysis of which suggested path might be the strongest fit, with reasoning. This is a qualitative assessment."),
 });
 export type CareerPathOutput = z.infer<typeof CareerPathOutputSchema>;
-
