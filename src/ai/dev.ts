@@ -7,4 +7,5 @@ import './flows/generateResumeFlow';
 import './flows/generateCoverLetterFlow';
 import './flows/skillGapAnalysisFlow';
 import './flows/mockInterviewFlow';
-import './flows/careerPathAdvisorFlow'; // Added new flow
+import './flows/careerPathAdvisorFlow';
+import './flows/outreachOptimizerFlow'; // Added new flow
