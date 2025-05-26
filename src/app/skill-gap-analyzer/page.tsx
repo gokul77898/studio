@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as FormDescriptionComponent } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, AlertTriangle, UploadCloud, FileText, Brain, Target, CheckSquare, XSquare, Percent, BookOpen } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, UploadCloud, FileText, Brain, Target, CheckSquare, XSquare, Percent, BookOpen, BarChart3 } from 'lucide-react'; // Changed Brain to BarChart3 for variety
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
@@ -90,14 +90,14 @@ export default function SkillGapAnalyzerPage() {
       const result = await analyzeSkillGap(input);
       setAnalysisResult(result);
       toast({
-        title: "Skill Gap Analysis Complete!",
-        description: "Your skill gap analysis is ready below.",
-        icon: <Brain className="h-5 w-5 text-primary" />,
+        title: "Job-Resume Match Analysis Complete!",
+        description: "Your detailed analysis report is ready below.",
+        icon: <BarChart3 className="h-5 w-5 text-primary" />,
       });
     } catch (e) {
       console.error("Skill gap analysis error:", e);
       const errorMessage = e instanceof Error ? e.message : 'An unexpected error occurred.';
-      setError(`An error occurred during skill gap analysis. ${errorMessage}`);
+      setError(`An error occurred during the analysis. ${errorMessage}`);
        toast({
         title: "Analysis Error",
         description: errorMessage.substring(0,200),
@@ -108,14 +108,14 @@ export default function SkillGapAnalyzerPage() {
     }
   };
 
-  const renderSkillList = (skills: string[] | undefined, title: string, icon: React.ReactNode, badgeVariant: "default" | "secondary" | "destructive" | "outline" = "secondary") => {
-    if (!skills || skills.length === 0) return null;
+  const renderSkillList = (skills: string[] | undefined, title: string, icon: React.ReactNode, badgeVariant: "default" | "secondary" | "destructive" | "outline" = "secondary", titleClassName?: string) => {
+    if (!skills || skills.length === 0) return <p className="text-sm text-muted-foreground">None explicitly identified by the AI.</p>;
     return (
       <div>
-        <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">{icon} {title}</h3>
+        <h3 className={cn("text-lg font-semibold mb-2 flex items-center gap-2", titleClassName)}>{icon} {title}</h3>
         <div className="flex flex-wrap gap-2">
           {skills.map((skill, index) => (
-            <Badge key={`${title.toLowerCase().replace(/\s+/g, '-')}-${index}`} variant={badgeVariant} className="text-sm">
+            <Badge key={`${title.toLowerCase().replace(/\s+/g, '-')}-${index}`} variant={badgeVariant} className="text-sm px-3 py-1">
               {skill}
             </Badge>
           ))}
@@ -129,11 +129,11 @@ export default function SkillGapAnalyzerPage() {
       <Card className="shadow-xl">
         <CardHeader>
           <div className="flex items-center gap-3 mb-2">
-            <Brain className="h-8 w-8 text-primary" />
-            <CardTitle className="text-3xl">AI Skill Gap Analyzer</CardTitle>
+            <BarChart3 className="h-8 w-8 text-primary" />
+            <CardTitle className="text-3xl">AI Job-Resume Match Analyzer</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Upload your resume and paste a target job description. The AI will analyze your skills against the job requirements and highlight any gaps.
+            Upload your resume and paste a target job description. The AI will provide a dynamic match score and highlight key skill alignments and gaps.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -197,12 +197,12 @@ export default function SkillGapAnalyzerPage() {
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Analyzing Skill Gap...
+                    Analyzing Match...
                   </>
                 ) : (
                   <>
                     <Wand2 className="mr-2 h-5 w-5" />
-                    Analyze Skill Gap
+                    Analyze Job Match
                   </>
                 )}
               </Button>
@@ -222,7 +222,7 @@ export default function SkillGapAnalyzerPage() {
       {isLoading && !analysisResult && (
          <div className="flex justify-center items-center py-10">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p className="ml-3 text-md text-muted-foreground">AI is analyzing your skills against the job...</p>
+            <p className="ml-3 text-md text-muted-foreground">AI is analyzing your resume against the job description...</p>
         </div>
       )}
 
@@ -231,37 +231,37 @@ export default function SkillGapAnalyzerPage() {
           <CardHeader>
              <div className="flex items-center gap-3 mb-2">
                 <Target className="h-8 w-8 text-primary" />
-                <CardTitle className="text-3xl">Skill Gap Analysis Report</CardTitle>
+                <CardTitle className="text-3xl">Job-Resume Match Report</CardTitle>
               </div>
+              <CardDescription>
+                This report details how your resume aligns with the provided job description.
+                Note: Real-time analysis of *every* job on the main listings page is computationally intensive. This page provides an in-depth match score for the specific job you've selected.
+              </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
               <h3 className="text-xl font-semibold mb-2 flex items-center gap-2">
-                <Percent className="h-5 w-5 text-accent" /> Overall Fit Score
+                <Percent className="h-6 w-6 text-accent" /> Overall Job-Resume Match Score
               </h3>
               <div className="flex items-center gap-4">
-                <Progress value={analysisResult.overallFitScore} className={cn("h-4 flex-grow", analysisResult.overallFitScore > 66 ? "[&>div]:bg-green-500" : analysisResult.overallFitScore > 33 ? "[&>div]:bg-yellow-500" : "[&>div]:bg-red-500" )} />
-                <span className={cn("text-2xl font-bold", analysisResult.overallFitScore > 66 ? "text-green-500" : analysisResult.overallFitScore > 33 ? "text-yellow-500" : "text-red-500")}>{analysisResult.overallFitScore}%</span>
+                <Progress value={analysisResult.overallFitScore} className={cn("h-6 flex-grow rounded-full", analysisResult.overallFitScore > 75 ? "[&>div]:bg-green-500" : analysisResult.overallFitScore > 40 ? "[&>div]:bg-yellow-500" : "[&>div]:bg-red-500" )} />
+                <span className={cn("text-3xl font-bold", analysisResult.overallFitScore > 75 ? "text-green-600" : analysisResult.overallFitScore > 40 ? "text-yellow-600" : "text-red-600")}>{analysisResult.overallFitScore}%</span>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">Estimated alignment of your resume with the job requirements.</p>
+              <p className="text-sm text-muted-foreground mt-2">{analysisResult.skillGapSummary}</p>
             </div>
             <Separator />
-            <div>
-              <h3 className="text-xl font-semibold mb-2">Summary</h3>
-              <p className="text-foreground/90 whitespace-pre-wrap">{analysisResult.skillGapSummary}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {renderSkillList(analysisResult.matchingSkills, "Matching Skills & Keywords", <CheckSquare className="h-5 w-5 text-green-600" />, "default", "text-green-700")}
+                {renderSkillList(analysisResult.missingSkills, "Missing Skills & Keywords (Gaps)", <XSquare className="h-5 w-5 text-destructive" />, "destructive", "text-destructive")}
             </div>
             <Separator />
-            {renderSkillList(analysisResult.identifiedUserSkills, "Your Identified Skills", <FileText className="h-5 w-5 text-blue-500" />, "outline")}
+             {renderSkillList(analysisResult.identifiedUserSkills, "Skills Identified from Your Resume", <FileText className="h-5 w-5 text-blue-600" />, "outline", "text-blue-700")}
             <Separator />
-            {renderSkillList(analysisResult.identifiedJobRequirements, "Job Requirements", <Target className="h-5 w-5 text-red-500" />, "outline")}
+            {renderSkillList(analysisResult.identifiedJobRequirements, "Requirements from Job Description", <Target className="h-5 w-5 text-indigo-600" />, "outline", "text-indigo-700")}
             <Separator />
-            {renderSkillList(analysisResult.matchingSkills, "Matching Skills", <CheckSquare className="h-5 w-5 text-green-500" />, "default")}
-            <Separator />
-            {renderSkillList(analysisResult.missingSkills, "Missing Skills / Areas to Emphasize", <XSquare className="h-5 w-5 text-orange-500" />, "destructive")}
-             <Separator />
             <div>
-              <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-purple-500" /> Suggestions for Improvement
+              <h3 className="text-xl font-semibold mb-3 flex items-center gap-2 text-purple-700">
+                <BookOpen className="h-5 w-5 text-purple-600" /> AI Suggestions for Improvement
               </h3>
               {analysisResult.suggestionsForImprovement && analysisResult.suggestionsForImprovement.length > 0 ? (
                 <ul className="list-disc space-y-2 pl-5 text-foreground/90">
@@ -270,15 +270,16 @@ export default function SkillGapAnalyzerPage() {
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted-foreground">No specific improvement suggestions provided for now. Focus on the missing skills identified.</p>
+                <p className="text-muted-foreground">No specific improvement suggestions provided for now. Focus on addressing the missing skills identified.</p>
               )}
             </div>
           </CardContent>
            <CardFooter>
-            <p className="text-xs text-muted-foreground">This skill gap analysis is AI-generated and intended as guidance. Always use your best judgment and tailor your application materials accordingly.</p>
+            <p className="text-xs text-muted-foreground">This analysis is AI-generated and intended as guidance. Always use your best judgment and tailor your application materials accordingly.</p>
           </CardFooter>
         </Card>
       )}
     </div>
   );
 }
+
