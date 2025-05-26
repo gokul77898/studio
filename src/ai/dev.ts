@@ -9,4 +9,5 @@ import './flows/skillGapAnalysisFlow';
 import './flows/mockInterviewFlow';
 import './flows/careerPathAdvisorFlow';
 import './flows/outreachOptimizerFlow';
-import './flows/applicationStrategistFlow'; // Added new flow
+import './flows/applicationStrategistFlow';
+import './flows/salaryNegotiationCoachFlow'; // Added new flow
