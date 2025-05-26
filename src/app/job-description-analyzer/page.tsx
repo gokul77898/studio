@@ -39,7 +39,7 @@ import {
   Frown,
   Users,
   TrendingUp,
-  Balance,
+  Scale, // Changed Balance to Scale
   Eye,
   MessageCircleQuestion,
 } from 'lucide-react';
@@ -251,7 +251,7 @@ export default function JobDescriptionAnalyzerPage() {
                     </AccordionTrigger>
                     <AccordionContent className="pt-2 space-y-3">
                         <div className="p-3 border rounded-md">
-                            <h4 className="font-medium mb-1 flex items-center gap-1 text-md"><Balance className="h-4 w-4 text-primary"/> Work-Life Balance:</h4>
+                            <h4 className="font-medium mb-1 flex items-center gap-1 text-md"><Scale className="h-4 w-4 text-primary"/> Work-Life Balance:</h4>
                             <p className="text-sm text-foreground/80">{analysisResult.workLifeBalanceIndicator}</p>
                         </div>
                          <div className="p-3 border rounded-md">
