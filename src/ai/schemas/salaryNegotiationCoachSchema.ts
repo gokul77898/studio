@@ -47,6 +47,10 @@ export const SalaryNegotiationInputSchema = z.object({
     .describe(
       'Optional: Any market research the user has done on salaries for similar roles (e.g., "Glassdoor shows average for this role in this city is X to Y").'
     ),
+  performSalaryWebSearch: z
+    .boolean()
+    .optional()
+    .describe('Whether the AI should attempt to perform a web search for comparable salary data. This is experimental.'),
 });
 export type SalaryNegotiationInput = z.infer<
   typeof SalaryNegotiationInputSchema
@@ -61,7 +65,7 @@ export const SalaryNegotiationOutputSchema = z.object({
   overallAssessment: z
     .string()
     .describe(
-      'A qualitative assessment of the offer (e.g., "The base salary appears competitive for your experience level and location, but there might be room to negotiate on the bonus structure.").'
+      'A qualitative assessment of the offer (e.g., "The base salary appears competitive for your experience level and location, but there might be room to negotiate on the bonus structure."). This may include findings from web search if performed.'
     ),
   suggestedCounterOffer: z
     .object({
@@ -76,7 +80,7 @@ export const SalaryNegotiationOutputSchema = z.object({
         .string()
         .optional()
         .describe(
-          'Brief reasoning for the suggested counter-offer strategy, based on the input and general market understanding.'
+          'Brief reasoning for the suggested counter-offer strategy, based on the input and general market understanding (and web search if performed).'
         ),
     })
     .describe('Suggestions for a counter-offer.'),
@@ -92,6 +96,10 @@ export const SalaryNegotiationOutputSchema = z.object({
     .describe(
       'Other factors the user might consider or bring up in negotiation (e.g., "Ask about performance review cycles for future salary increases," "Clarify remote work policy," "Negotiate professional development budget").'
     ),
+  webSearchSummary: z
+    .string()
+    .optional()
+    .describe("A summary of relevant salary information found via web search, if performed. Includes caveats about the data's nature."),
 });
 export type SalaryNegotiationOutput = z.infer<
   typeof SalaryNegotiationOutputSchema

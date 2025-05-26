@@ -9,6 +9,7 @@
  */
 
 import { ai } from '@/ai/genkit';
+import { z } from 'zod';
 import {
   SalaryNegotiationInputSchema,
   SalaryNegotiationOutputSchema,
@@ -16,13 +17,57 @@ import {
   type SalaryNegotiationOutput,
 } from '../schemas/salaryNegotiationCoachSchema';
 
+// Re-using the performWebSearch tool definition logic from careerAdvisorFlow
+// In a larger app, this might be in a shared tools file.
+const performWebSearch = ai.defineTool(
+  {
+    name: 'performWebSearchForSalary', // Giving a slightly different name to distinguish if needed, though functionality is same
+    description: 'Performs a targeted web search to find publicly available salary data for a specific job title, location, and experience level. Use this to gather context from sites like Levels.fyi, Glassdoor, etc.',
+    inputSchema: z.object({
+      jobTitle: z.string().describe('The job title to search for.'),
+      location: z.string().describe('The location (e.g., city, country) for the salary search.'),
+      yearsOfExperience: z.number().optional().describe('Years of experience, if relevant for refining search.'),
+    }),
+    outputSchema: z.object({
+      results: z.array(
+        z.object({
+          title: z.string().describe('The title of the search result or data point.'),
+          snippet: z.string().describe('A brief snippet or summary of the salary information found.'),
+          url: z.string().url().optional().describe('The source URL, if available.'),
+        })
+      ).min(0).max(3).describe('A list of 0 to 3 relevant salary data points found.'),
+      summary: z.string().optional().describe('A brief overall summary of the web search findings related to salary. It should include caveats about the data being indicative.')
+    }),
+  },
+  async (input) => {
+    const searchQuery = `${input.jobTitle} salary ${input.location}${input.yearsOfExperience ? ` ${input.yearsOfExperience} years experience` : ''} site:levels.fyi OR site:glassdoor.com OR site:payscale.com`;
+    console.log(`[performWebSearchForSalary] Simulating web search for: "${searchQuery}"`);
+    // Mock results for demonstration. In a real Genkit setup with a search plugin, this would be a live search.
+    const mockResults = [
+      { title: `Mock Data: ${input.jobTitle} in ${input.location}`, snippet: `General online sources suggest a range of X to Y for this role and location. Specifics vary.`, url: `https://example.com/mock-salary-search?q=${encodeURIComponent(searchQuery)}` },
+    ];
+     let mockSummary = `Simulated web search for ${input.jobTitle} in ${input.location} suggests a general salary range. This data is indicative and should be verified.`;
+      if (input.jobTitle.toLowerCase().includes("software engineer") && input.location.toLowerCase().includes("san francisco")) {
+        mockResults.push({ title: `Levels.fyi (Mock) - SE in SF`, snippet: `Entry-level: $120k-$150k, Mid-level: $150k-$200k, Senior: $200k+ (Base, excluding bonus/stock).`, url: "https://levels.fyi" });
+        mockSummary = `Web search found mock data for Software Engineers in San Francisco on sites like Levels.fyi, indicating ranges from $120k for entry-level up to $200k+ for senior roles (base). This is illustrative.`;
+    }
+
+    return {
+      results: mockResults.slice(0,2),
+      summary: mockSummary,
+    };
+  }
+);
+
+
 const salaryNegotiationPrompt = ai.definePrompt({
   name: 'salaryNegotiationPrompt',
   input: { schema: SalaryNegotiationInputSchema },
   output: { schema: SalaryNegotiationOutputSchema },
+  tools: [performWebSearch], // Added web search tool
   prompt: `You are an expert, empathetic, and highly strategic Salary Negotiation Coach AI.
 Your task is to analyze the user's job offer details and provide a comprehensive, actionable, and advanced negotiation strategy.
-You do not have access to live, real-time, hyper-specific salary databases like Levels.fyi or Glassdoor. Your assessment will be based on the information provided by the user and your general knowledge of salary trends, negotiation tactics, and professional communication.
+You do not have access to live, real-time, hyper-specific salary databases like Levels.fyi or Glassdoor by default. Your assessment will be based on the information provided by the user and your general knowledge of salary trends, negotiation tactics, and professional communication.
 
 User's Offer Details:
 - Job Title: {{{jobTitle}}}
@@ -41,49 +86,48 @@ User's Offer Details:
 (Analyze this user-provided research CRITICALLY. If it seems reasonable, integrate it into your assessment and counter-offer rationale. If it seems significantly off from general market understanding for the role/location/experience, you may gently note this in your assessment but still base your primary advice on a more common understanding, while acknowledging the user's input.)
 {{/if}}
 
+{{#if performSalaryWebSearch}}
+Web Search for Salary Context:
+The user has requested a web search for comparable salary data.
+You SHOULD use the 'performWebSearchForSalary' tool to search for publicly available salary information for '{{{jobTitle}}}' in '{{{locationCity}}}, {{{locationCountry}}}' with about {{{yearsOfExperience}}} years of experience.
+Integrate the findings (especially the 'summary' from the tool's output) into your 'overallAssessment' and potentially into the 'reasoning' for the 'suggestedCounterOffer'.
+Clearly state that this information is from a web search and should be considered indicative. Populate the 'webSearchSummary' field in the output with the tool's summary.
+If the tool returns no specific data, acknowledge that the search did not yield useful results.
+{{/if}}
+
 Instructions for Your Advanced Coaching:
 
 1.  **Overall Assessment ('overallAssessment'):**
     *   Provide a nuanced, qualitative assessment of the entire offer.
-    *   Consider if the base salary seems reasonable for the role, experience, and location, based on general knowledge AND explicitly factoring in userMarketResearch if provided. Discuss how the user's research aligns or diverges from general expectations.
-    *   If otherOfferComponents are detailed by the user, comment on their typical value or commonality for such roles (e.g., "The 10% bonus is standard, but the RSU grant seems generous/modest for this level.").
+    *   Consider if the base salary seems reasonable for the role, experience, and location, based on general knowledge, userMarketResearch (if provided), AND web search results (if performSalaryWebSearch was true and results were found). Discuss how user research and web search findings align or diverge from general expectations.
+    *   If otherOfferComponents are detailed by the user, comment on their typical value or commonality for such roles.
     *   Example: "Based on your {{{yearsOfExperience}}} years of experience for a {{{jobTitle}}} in {{{locationCity}}}, and considering your research notes which suggest [mention user's research point], the offered base of {{{offeredSalaryAmount}}} {{{offeredSalaryCurrency}}} appears to be [e.g., competitive, slightly below typical market range, a strong starting point]. The mentioned [specific other component] is a valuable part of the package. Let's explore a strategy to potentially enhance the base or other aspects."
+    *   If web search was performed, weave its summary here: "A web search for similar roles in {{{locationCity}}} suggests [summary from webSearchSummary]. This [supports/contrasts with] the current offer..."
 
 2.  **Suggested Counter-Offer Strategy ('suggestedCounterOffer'):**
-    *   'idealRange': Suggest a reasonable *ideal salary range* for a counter-offer (e.g., "115,000 - 125,000 {{{offeredSalaryCurrency}}}"). If you cannot confidently suggest a specific numerical range due to lack of precise data for a niche role/location, explain this and focus on building value justification instead.
+    *   'idealRange': Suggest a reasonable *ideal salary range* for a counter-offer (e.g., "115,000 - 125,000 {{{offeredSalaryCurrency}}}"). If you cannot confidently suggest a specific numerical range due to lack of precise data, explain this and focus on building value justification instead.
     *   'specificPoints': List 2-4 specific aspects the user could focus on (e.g., "Prioritize increasing the base salary.", "Negotiate for a higher signing bonus if base is inflexible.", "Request an additional week of PTO.").
     *   'reasoning': Provide a DETAILED rationale for your counter-offer strategy. Explain *why* this counter is justifiable, linking it directly to:
         *   The user's stated years of experience.
         *   The implied demands/responsibilities of the jobTitle in locationCity.
         *   Any relevant userMarketResearch findings.
+        *   Findings from the web search, if applicable.
         *   General principles of value-based negotiation.
 
 3.  **Detailed Negotiation Script Points / Dialogue Examples ('negotiationScriptPoints'):**
     *   Provide 3-5 detailed script points. Each 'point' should be a specific phrase or a short dialogue example that the user can adapt.
     *   Each 'explanation' (optional) should briefly explain the purpose or timing of that point.
-    *   Cover different potential stages of the negotiation:
-        *   **Initial Grateful Response & Enthusiasm:**
-            *   Example Point: "Thank you so much for extending the offer for the {{{jobTitle}}} position! I'm very excited about the opportunity to join {{{companyName}}} and contribute to [mention something specific you're excited about, e.g., 'your innovative work in X']."
-            *   Example Explanation: "Always start positively and reiterate your interest. This sets a collaborative tone."
-        *   **Stating Your Counter (with Justification):**
-            *   Example Point: "Regarding the compensation, I've carefully reviewed the offer and done some research on similar roles in {{{locationCity}}} for someone with {{{yearsOfExperience}}} years of experience, including [mention your market research if you have it, e.g., 'data from Y source']. Based on this, and the value I believe I can bring, particularly my experience in [mention 1-2 key skills/experiences from your resume relevant to the role], I was hoping for a base salary in the range of [Your Suggested Ideal Counter Range from the 'idealRange' field]. Would that be something you could consider?"
-            *   Example Explanation: "Clearly state your desired range, anchor it to your value, experience, and market understanding. Phrasing it as a question keeps the door open for discussion."
-        *   **Handling Potential Initial Pushback (e.g., "This is our standard offer"):**
-            *   Example Point: "I understand that this might be the standard range. Given my specific track record in [mention a quantifiable achievement or unique skill that's highly relevant to the job description, if possible], I'm confident I can deliver exceptional results quickly. Is there any flexibility to recognize that, perhaps through a one-time signing bonus or a performance-based incentive on top of the base if the base itself is firm?"
-            *   Example Explanation: "Acknowledge their position, reiterate your unique value, and explore alternatives if the base is rigid. This shows flexibility on your part too."
-        *   **Focus on Politeness, Professionalism, and being Value-Driven.**
+    *   Cover different potential stages of the negotiation (Initial Grateful Response & Enthusiasm, Stating Your Counter (with Justification), Handling Potential Initial Pushback).
+    *   Focus on Politeness, Professionalism, and being Value-Driven.
 
 4.  **Advanced Advice on Other Offer Components & Additional Considerations ('additionalConsiderations'):**
     *   If the user detailed otherOfferComponents: For each significant component (e.g., bonus, stock, PTO, professional development), provide 1-2 specific (but general) questions the user could ask or points they could clarify/negotiate.
-        *   Example for Bonus: "If a bonus is mentioned, ask: Is this a target bonus, and what were the average payouts for this role in the past year? Is it guaranteed or discretionary?"
-        *   Example for Stock/RSUs: "For stock options/RSUs, inquire about: The total grant value, the vesting schedule (e.g., 4-year vest with 1-year cliff), and the type of options (e.g., ISOs, NSOs)."
-        *   Example for PTO: "If PTO seems standard, you could ask: Is there room to negotiate an extra week of vacation, perhaps after the first year?"
-    *   If otherOfferComponents were not detailed by the user, list 2-4 general non-salary items they might consider (as before: professional development budget, performance review cycle, remote work flexibility, benefits package details, etc.).
+    *   If otherOfferComponents were not detailed by the user, list 2-4 general non-salary items they might consider.
     *   Conclude with a subtle reminder that your advice is general and real market conditions vary.
 
 Output Format: Ensure your response is strictly in the JSON format defined by the SalaryNegotiationOutputSchema.
-Tone: Be highly strategic, empowering, empathetic, and provide concrete, actionable language. Your goal is to build the user's confidence and skill.
-Complexity: Aim for depth in reasoning and detail in script examples.
+Tone: Be highly strategic, empowering, empathetic, and provide concrete, actionable language.
+If 'performSalaryWebSearch' was true but the search tool returns no useful information or an empty summary, acknowledge this in your 'webSearchSummary' output (e.g., "Web search for specific salary data did not yield conclusive results for this role and location.") and proceed with advice based on general knowledge and user-provided information.
 `,
   config: {
     temperature: 0.7,
@@ -103,7 +147,10 @@ const salaryNegotiationCoachFlow = ai.defineFlow(
     outputSchema: SalaryNegotiationOutputSchema,
   },
   async (input) => {
+    // The prompt itself handles the conditional logic for using the web search tool.
+    // The 'performWebSearchForSalary' tool will only be called by the LLM if input.performSalaryWebSearch is true.
     const { output } = await salaryNegotiationPrompt(input);
+    
     if (!output) {
       console.error(
         'Salary negotiation coach flow received no output from the prompt.'
@@ -126,7 +173,8 @@ const salaryNegotiationCoachFlow = ai.defineFlow(
             "Understand the performance review cycle and criteria for future raises and promotions.",
             "Clarify expectations around work hours, remote work policies, and any on-call responsibilities.",
             "Remember that negotiation is a dialogue; be prepared to listen and be flexible where appropriate."
-        ]
+        ],
+        webSearchSummary: input.performSalaryWebSearch ? "Web search was attempted but did not yield specific results in this instance." : undefined,
       };
     }
     return output;

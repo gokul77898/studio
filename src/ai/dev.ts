@@ -10,4 +10,4 @@ import './flows/mockInterviewFlow';
 import './flows/careerPathAdvisorFlow';
 import './flows/outreachOptimizerFlow';
 import './flows/applicationStrategistFlow';
-import './flows/salaryNegotiationCoachFlow'; // Added new flow
+import './flows/salaryNegotiationCoachFlow'; 

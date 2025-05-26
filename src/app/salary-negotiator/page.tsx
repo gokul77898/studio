@@ -11,13 +11,15 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as FormDescriptionComponent } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, AlertTriangle, Sparkles, Briefcase, Building, MapPin, CalendarCheck, FileSignature, DollarSign, MessageSquare, ListChecks, Info } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, Sparkles, Briefcase, Building, MapPin, CalendarCheck, FileSignature, DollarSign, MessageSquare, ListChecks, Info, Globe } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { coachSalaryNegotiation, type SalaryNegotiationInput, type SalaryNegotiationOutput } from '@/ai/flows/salaryNegotiationCoachFlow';
 import { SalaryNegotiationInputSchema } from '@/ai/schemas/salaryNegotiationCoachSchema';
+import { Checkbox } from '@/components/ui/checkbox'; // Added Checkbox import
+import { Label } from '@/components/ui/label'; // Added Label import
 
 type SalaryNegotiationFormValues = SalaryNegotiationInput;
 
@@ -35,10 +37,11 @@ export default function SalaryNegotiatorPage() {
       locationCity: '',
       locationCountry: '',
       yearsOfExperience: 0,
-      offeredSalaryAmount: undefined, // Using undefined for number input placeholder
+      offeredSalaryAmount: undefined, 
       offeredSalaryCurrency: 'USD',
       otherOfferComponents: '',
       userMarketResearch: '',
+      performSalaryWebSearch: false, // Default to false
     }
   });
 
@@ -78,7 +81,7 @@ export default function SalaryNegotiatorPage() {
             <CardTitle className="text-3xl">AI Salary Negotiation Coach</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Enter your job offer details, and the AI will provide an assessment, suggest counter-offer points, and help you craft negotiation scripts.
+            Enter your job offer details. The AI will provide an assessment, suggest counter-offer points, and help craft negotiation scripts. Optionally, allow AI to search the web for salary context.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -219,6 +222,29 @@ export default function SalaryNegotiatorPage() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="performSalaryWebSearch"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-muted/30">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <Label htmlFor="performSalaryWebSearch" className="flex items-center gap-1 cursor-pointer">
+                          <Globe className="h-4 w-4 text-primary"/>
+                           Attempt Web Search for Salary Data (Experimental)
+                        </Label>
+                        <FormDescriptionComponent>
+                          If checked, the AI will try to search online for publicly available salary data (e.g., from Levels.fyi, Glassdoor via a general search) to provide additional context. This uses a simulated search tool.
+                        </FormDescriptionComponent>
+                      </div>
+                    </FormItem>
+                  )}
+                />
               <Button type="submit" disabled={isLoading} className="text-lg py-6 px-8">
                 {isLoading ? (
                   <>
@@ -261,6 +287,15 @@ export default function SalaryNegotiatorPage() {
               </div>
           </CardHeader>
           <CardContent className="space-y-6">
+            {adviceResult.webSearchSummary && (
+                <Alert variant="default" className="bg-blue-50 border-blue-200 dark:bg-blue-900/30 dark:border-blue-700">
+                    <Globe className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <AlertTitle className="text-blue-700 dark:text-blue-300">Web Search Salary Context</AlertTitle>
+                    <AlertDescription className="text-blue-700/90 dark:text-blue-300/90">
+                        {adviceResult.webSearchSummary}
+                    </AlertDescription>
+                </Alert>
+            )}
             <Accordion type="multiple" defaultValue={['item-0', 'item-1', 'item-2', 'item-3']} className="w-full">
               
               <AccordionItem value="item-0">
@@ -285,7 +320,7 @@ export default function SalaryNegotiatorPage() {
                     </div>
                   )}
                   {adviceResult.suggestedCounterOffer.reasoning && (
-                    <p className="text-sm text-muted-foreground"><em>Reasoning: {adviceResult.suggestedCounterOffer.reasoning}</em></p>
+                    <p className="text-sm text-muted-foreground mt-1"><em>Reasoning: {adviceResult.suggestedCounterOffer.reasoning}</em></p>
                   )}
                 </AccordionContent>
               </AccordionItem>
