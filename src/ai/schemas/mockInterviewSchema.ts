@@ -11,11 +11,20 @@ export const MockInterviewTurnSchema = z.object({
 });
 export type MockInterviewTurn = z.infer<typeof MockInterviewTurnSchema>;
 
+export const InterviewTypeSchema = z.enum([
+  "General / Behavioral",
+  "Technical - Conceptual (Software Engineering)",
+  "Technical - Conceptual (AI/ML)",
+  "Technical - Conceptual (Data Science)",
+]);
+export type InterviewType = z.infer<typeof InterviewTypeSchema>;
+
 export const MockInterviewInputSchema = z.object({
   resumeDataUri: z.string().optional().describe("User's resume as a data URI. Provided at the start of the session. Optional for subsequent turns if already processed."),
   userSkills: z.string().optional().describe("User's self-described skills. Provided at the start."),
   targetCompanyName: z.string().optional().describe("The company the user is targeting. Provided at the start."),
   jobContext: z.string().optional().describe("General context about the job or type of interview (e.g., 'Software Engineer behavioral questions'). This can be used if resume/company is not detailed enough or for general practice."),
+  interviewType: InterviewTypeSchema.optional().describe("Specific type of interview the user wants to practice for (e.g., Behavioral, Technical Conceptual)."),
   
   userAnswer: z.string().optional().describe("The user's answer to the AI's previous question. Omit for the first question of the session."),
   interviewHistory: z.array(MockInterviewTurnSchema).optional().describe("History of previous questions asked by AI, user's answers, and AI's feedback on those answers."),
@@ -30,3 +39,4 @@ export const MockInterviewOutputSchema = z.object({
   isSessionOver: z.boolean().optional().default(false).describe("True if the AI considers the mock interview session complete."),
 });
 export type MockInterviewOutput = z.infer<typeof MockInterviewOutputSchema>;
+

@@ -12,10 +12,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as FormDescriptionComponent } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, AlertTriangle, User, Bot, Send, Brain, StopCircle, Briefcase, Building, Mic, MicOff, Volume2 } from 'lucide-react';
+import { Loader2, AlertTriangle, User, Bot, Send, Brain, StopCircle, Briefcase, Building, Mic, MicOff, Volume2, ListChecks } from 'lucide-react'; // Added ListChecks
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
-import { conductMockInterviewTurn, type MockInterviewInput, type MockInterviewOutput, type MockInterviewTurn } from '@/ai/flows/mockInterviewFlow';
+import { conductMockInterviewTurn, type MockInterviewInput, type MockInterviewOutput, type MockInterviewTurn, type InterviewType } from '@/ai/flows/mockInterviewFlow'; // Added InterviewType
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -30,6 +30,7 @@ interface MockInterviewSessionSetup {
   userSkills?: string;
   targetCompanyName?: string;
   jobContext?: string;
+  interviewType?: InterviewType; // Added interviewType
 }
 
 // Speech Recognition API might not be available on all window objects
@@ -77,7 +78,7 @@ export default function MockInterviewSessionPage() {
     if (setupDataString) {
       let parsedData: MockInterviewSessionSetup | null = null;
       try {
-        parsedData = JSON.parse(setupDataString);
+        parsedData = JSON.parse(setupDataString) as MockInterviewSessionSetup;
       } catch (e) {
         console.error("Failed to parse interview setup data from localStorage:", e);
         toast({ title: "Error Starting Session", description: "Invalid setup data. Please try setting up again.", variant: "destructive" });
@@ -92,14 +93,16 @@ export default function MockInterviewSessionPage() {
             userSkills: parsedData.userSkills,
             targetCompanyName: parsedData.targetCompanyName,
             jobContext: parsedData.jobContext,
+            interviewType: parsedData.interviewType, // Pass interviewType
             interviewHistory: [],
         };
+        console.log("Initializing interview with setup:", initialInput);
         handleInterviewTurn(initialInput, true).finally(() => {
           localStorage.removeItem('mockInterviewSetup');
         });
       } else {
         toast({ title: "No Resume Data", description: "Resume data is missing. Please set up your mock interview again.", variant: "destructive" });
-        localStorage.removeItem('mockInterviewSetup'); // Also remove if data is invalid
+        localStorage.removeItem('mockInterviewSetup');
         router.push('/mock-interview');
       }
     } else {
@@ -158,9 +161,9 @@ export default function MockInterviewSessionPage() {
       
       if (result.isSessionOver) {
         setIsSessionOver(true);
-        toast({ title: "Mock Interview Session Ended.", description: "Hope this was helpful!" });
+        toast({ title: "Mock Interview Session Ended.", description: "Hope this was helpful! Redirecting to setup..." });
         if (!input.endSessionSignal && !isInitialCall) { 
-          setTimeout(() => router.push('/mock-interview'), 5000); // Increased delay
+          setTimeout(() => router.push('/mock-interview'), 3000); // Shorter delay for auto-end
         } else if (input.endSessionSignal) {
             router.push('/mock-interview'); // Immediate redirect if user initiated end
         }
@@ -205,6 +208,7 @@ export default function MockInterviewSessionPage() {
       userSkills: sessionSetup.userSkills,
       targetCompanyName: sessionSetup.targetCompanyName,
       jobContext: sessionSetup.jobContext,
+      interviewType: sessionSetup.interviewType, // Pass interviewType
       userAnswer: data.answer,
       lastAiQuestion: currentAiQuestion,
       interviewHistory: interviewHistory, 
@@ -234,14 +238,14 @@ export default function MockInterviewSessionPage() {
         userSkills: sessionSetup.userSkills,
         targetCompanyName: sessionSetup.targetCompanyName,
         jobContext: sessionSetup.jobContext,
+        interviewType: sessionSetup.interviewType, // Pass interviewType
         interviewHistory: interviewHistory,
         lastAiQuestion: currentAiQuestion || undefined,
         userAnswer: interviewHistory.length > 0 && interviewHistory.slice(-1)[0].answer ? interviewHistory.slice(-1)[0].answer : "(User clicked 'End Interview')", 
         endSessionSignal: true,
     };
-    await handleInterviewTurn(endSessionInput, false); // Pass false for isInitialCall
+    await handleInterviewTurn(endSessionInput, false);
     setIsLoading(false);
-    // Redirect is handled within handleInterviewTurn if endSessionSignal is true
   };
 
   const toggleRecording = () => {
@@ -257,10 +261,9 @@ export default function MockInterviewSessionPage() {
     if (isRecording && speechRecognitionRef.current) {
       console.log("[SpeechRec] Stopping recording manually.");
       speechRecognitionRef.current.stop();
-      // isRecording will be set to false in onend
     } else {
       speechRecognitionRef.current = new SpeechRecognitionAPI();
-      speechRecognitionRef.current.continuous = false; // Stop after first phrase, or make true for longer dictation
+      speechRecognitionRef.current.continuous = false;
       speechRecognitionRef.current.interimResults = true;
       speechRecognitionRef.current.lang = 'en-US';
 
@@ -288,26 +291,26 @@ export default function MockInterviewSessionPage() {
           }
         }
         
-        // Append final segments to the existing text, then add current interim
-        currentAnswerText += finalTranscriptSegment;
-        answerForm.setValue('answer', currentAnswerText + interimTranscript);
-        console.log(`[SpeechRec] Interim: "${interimTranscript}", Final segment for this result: "${finalTranscriptSegment}", Full current text: "${currentAnswerText + interimTranscript}"`);
+        const newText = (currentAnswerText.trim() ? currentAnswerText.trim() + " " : "") + finalTranscriptSegment.trim();
+        answerForm.setValue('answer', (newText + " " + interimTranscript).trim());
+        console.log(`[SpeechRec] Interim: "${interimTranscript}", Final segment for this result: "${finalTranscriptSegment}", Full current text: "${(newText + " " + interimTranscript).trim()}"`);
+         if (finalTranscriptSegment.trim()) {
+          currentAnswerText = newText; // Update currentAnswerText with finalized segment
+        }
       };
 
       speechRecognitionRef.current.onerror = (event) => {
         console.error('[SpeechRec] Event: onerror - Speech recognition error:', event.error, event.message);
         toast({ title: "Speech Error", description: `Error: ${event.error}. Try again or type.`, variant: "destructive" });
-        setIsRecording(false); // Ensure state is reset
+        setIsRecording(false); 
       };
 
       speechRecognitionRef.current.onend = () => {
-        console.log("[SpeechRec] Event: onend - Recording ended. Final accumulated text in form:", currentAnswerText.trim());
+        console.log("[SpeechRec] Event: onend - Recording ended. Final accumulated text in form:", answerForm.getValues('answer'));
         setIsRecording(false);
-        answerForm.setValue('answer', currentAnswerText.trim()); 
         toast({ title: "Recording Ended" });
       };
       
-      // Ensure there's a space if appending to existing text
       if (currentAnswerText && !currentAnswerText.endsWith(' ')) {
         currentAnswerText += ' ';
       }
@@ -346,9 +349,32 @@ export default function MockInterviewSessionPage() {
               <StopCircle className="mr-2 h-4 w-4" /> End Interview
             </Button>
           </div>
-          {sessionSetup?.targetCompanyName && <CardDescription>Targeting: {sessionSetup.targetCompanyName}</CardDescription>}
-          {sessionSetup?.userSkills && <CardDescription className="text-xs">Skills focus: {sessionSetup.userSkills}</CardDescription>}
-           {sessionSetup?.jobContext && <CardDescription className="text-xs">Context: {sessionSetup.jobContext}</CardDescription>}
+          <div className="space-y-1 text-xs text-muted-foreground pt-1">
+            {sessionSetup?.interviewType && (
+              <div className="flex items-center gap-1">
+                <ListChecks className="h-3.5 w-3.5" />
+                <span>Type: {sessionSetup.interviewType}</span>
+              </div>
+            )}
+            {sessionSetup?.targetCompanyName && (
+              <div className="flex items-center gap-1">
+                <Building className="h-3.5 w-3.5" />
+                <span>Targeting: {sessionSetup.targetCompanyName}</span>
+              </div>
+            )}
+            {sessionSetup?.userSkills && (
+              <div className="flex items-center gap-1">
+                <Briefcase className="h-3.5 w-3.5" />
+                <span>Skills focus: {sessionSetup.userSkills}</span>
+              </div>
+            )}
+             {sessionSetup?.jobContext && !sessionSetup.interviewType && ( // Show jobContext if interviewType isn't more specific
+                <div className="flex items-center gap-1">
+                    <Briefcase className="h-3.5 w-3.5" />
+                    <span>Context: {sessionSetup.jobContext}</span>
+                </div>
+            )}
+          </div>
         </CardHeader>
 
         <ScrollArea className="flex-grow p-4 space-y-4" ref={scrollAreaRef}>
@@ -373,7 +399,7 @@ export default function MockInterviewSessionPage() {
               {/* User Answer */}
               {turn.answer && (
                 <div className="flex items-start gap-3 my-3 justify-end">
-                   <div className="bg-blue-500 text-white p-3 rounded-lg shadow-sm max-w-[85%]">
+                   <div className="bg-primary text-primary-foreground p-3 rounded-lg shadow-sm max-w-[85%]"> {/* Changed to primary color */}
                      <p className="font-semibold text-sm">You:</p>
                      <p className="text-sm whitespace-pre-wrap">{turn.answer}</p>
                    </div>
@@ -421,7 +447,7 @@ export default function MockInterviewSessionPage() {
                 </div>
           )}
           
-          {isLoading && isInterviewInitialized && ( // Only show AI thinking if interview has started
+          {isLoading && isInterviewInitialized && (
               <div className="flex items-start gap-3 my-3">
                   <Avatar className="h-9 w-9 border border-primary/30">
                      <AvatarFallback className="bg-primary text-primary-foreground"><Bot className="h-5 w-5" /></AvatarFallback>

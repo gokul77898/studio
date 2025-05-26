@@ -13,9 +13,10 @@ import {
   MockInterviewOutputSchema,
   type MockInterviewInput,
   type MockInterviewOutput,
+  type InterviewType, // Added InterviewType
 } from '../schemas/mockInterviewSchema';
 // Re-exporting schema types for easier import on the page component
-export type { MockInterviewInput, MockInterviewOutput, MockInterviewTurn } from '../schemas/mockInterviewSchema'; 
+export type { MockInterviewInput, MockInterviewOutput, MockInterviewTurn, InterviewType } from '../schemas/mockInterviewSchema'; 
 
 const mockInterviewPrompt = ai.definePrompt({
   name: 'mockInterviewPrompt',
@@ -34,9 +35,19 @@ No resume provided.
 
 User's Stated Skills (if provided): {{{userSkills}}}
 Target Company (if provided, consider its typical interview style/difficulty if widely known): {{{targetCompanyName}}}
-Job Context (general role/interview type): {{{jobContext}}}
-
+Job Context (general role/interview type, less specific than interviewType): {{{jobContext}}}
+{{#if interviewType}}
+Selected Interview Type: **{{{interviewType}}}**
+Tailor questions specifically for this type of interview.
+- If "General / Behavioral", ask common behavioral and situational questions.
+- If "Technical - Conceptual (Software Engineering)", ask about software design principles, architecture, data structures, algorithms (conceptually, not coding exercises), debugging approaches, system design, etc.
+- If "Technical - Conceptual (AI/ML)", ask about ML model concepts, evaluation metrics, data preprocessing, common algorithms, ethical considerations in AI, etc.
+- If "Technical - Conceptual (Data Science)", ask about statistical concepts, data analysis techniques, experimental design, data visualization principles, etc.
+If resume, skills, or company are also provided, try to blend the interview type with context from those inputs.
+{{else}}
 (If resume, skills, or company are provided, prioritize tailoring questions to them. If jobContext is available, use it to guide the type of questions. If none of these are provided, ask general behavioral or common interview questions.)
+{{/if}}
+
 
 Interview History (previous turns, if any):
 {{#each interviewHistory}}
@@ -67,24 +78,25 @@ Instructions for providing feedback on the user's answer:
 6.  After providing feedback, transition smoothly to the next question.
 {{else}}
 This is the beginning of the interview or the user is ready for the next question.
-Ask the first or next appropriate question based on the resume, skills, company, and job context.
+Ask the first or next appropriate question based on the resume, skills, company, job context, and importantly, the selected 'interviewType' if provided.
 {{/if}}
 
 Instructions for asking questions:
 - Ask ONE question at a time. This question should be populated in the 'currentAiQuestion' output field.
-- If a resume is provided, ask questions that allow the user to elaborate on their experiences or skills mentioned there.
-- If targetCompanyName is mentioned, subtly tailor the tone or type of questions if you have general knowledge of that company's interview style (e.g., behavioral for Amazon, technical/problem-solving for Google). If unsure, stick to general questions relevant to jobContext or userSkills.
-- If userSkills are provided, ask questions that probe these skills.
-- If jobContext is provided (e.g., "Software Engineer behavioral questions"), tailor questions to that context. For technical roles, you can ask conceptual technical questions or scenario-based technical problem-solving questions appropriate for a verbal interview format.
-- If no specific context, ask common behavioral questions (e.g., "Tell me about yourself," "Why are you interested in this role/company?", "Describe a challenging situation you faced and how you handled it," "What are your strengths/weaknesses?") or general interview questions.
-- Vary question types: behavioral, situational, problem-solving.
+- If 'interviewType' is specified, ensure your question aligns with that type (e.g., conceptual technical question for "Technical - Conceptual (Software Engineering)").
+- If a resume is provided, ask questions that allow the user to elaborate on their experiences or skills mentioned there, relevant to the 'interviewType'.
+- If targetCompanyName is mentioned, subtly tailor the tone or type of questions if you have general knowledge of that company's interview style, relevant to the 'interviewType'.
+- If userSkills are provided, ask questions that probe these skills, relevant to the 'interviewType'.
+- If jobContext is provided (e.g., "Senior Software Engineer"), tailor questions to that context, relevant to the 'interviewType'.
+- If no specific context or 'interviewType', ask common behavioral questions (e.g., "Tell me about yourself," "Why are you interested in this role/company?", "Describe a challenging situation you faced and how you handled it," "What are your strengths/weaknesses?") or general interview questions.
+- Vary question types within the selected 'interviewType' if applicable (e.g., for behavioral: situational, strengths-based, weakness-based).
 - Aim for a session of about 3-5 questions in total. If the interviewHistory shows 3-4 questions have already been answered, consider making the next question the last one, or ask if the user wants to continue if you can do that naturally within the conversation.
 - If you decide the session should end (either due to length or user signal), set 'isSessionOver' to true in the output. Your 'aiResponseText' should then be a concluding remark. In this case, 'currentAiQuestion' can be omitted or be an empty string.
 
 Output Formatting:
 - The 'aiResponseText' field MUST contain your full response to the user.
   - If giving feedback and asking a new question: Start with your feedback on the user's previous answer. Then, on a new line, clearly state "Here's your next question:" followed by the new question.
-  - If asking the first question: Start with a brief greeting (e.g., "Okay, let's begin based on your resume for [Target Company Name/Job Context]!") and then state the question.
+  - If asking the first question: Start with a brief greeting (e.g., "Okay, let's begin your {{interviewType}} mock interview!") and then state the question.
   - If ending the session: Only provide your concluding remarks in 'aiResponseText'.
 - The 'currentAiQuestion' field MUST contain ONLY the text of the new question you are asking. If the session is over, this can be empty.
 - Set 'isSessionOver' to true if this is the end of the mock interview. Otherwise, it should be false or omitted.

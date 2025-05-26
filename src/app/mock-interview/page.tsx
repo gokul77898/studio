@@ -6,16 +6,18 @@ import type { SubmitHandler} from 'react-hook-form';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useRouter } from 'next/navigation'; // Changed from next/navigation
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as FormDescriptionComponent } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, PlayCircle, UploadCloud, Brain, Briefcase, Building } from 'lucide-react';
+import { Loader2, PlayCircle, UploadCloud, Brain, Briefcase, Building, ListChecks } from 'lucide-react'; // Added ListChecks
 import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'; // Added Alert imports
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Added Select
+import { InterviewTypeSchema, type InterviewType } from '@/ai/schemas/mockInterviewSchema'; // Added InterviewTypeSchema
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB for resumes
 const ACCEPTED_FILE_TYPES = [
@@ -26,6 +28,9 @@ const ACCEPTED_FILE_TYPES = [
   "application/rtf",
   "text/markdown"
 ];
+
+const interviewTypeOptions = InterviewTypeSchema.options;
+const ANY_INTERVIEW_TYPE_VALUE = "__any_interview_type__";
 
 const interviewSetupSchema = z.object({
   resumeFile: z
@@ -38,6 +43,7 @@ const interviewSetupSchema = z.object({
   userSkills: z.string().optional(),
   targetCompanyName: z.string().optional(),
   jobContext: z.string().optional(),
+  interviewType: z.string().optional(), // Will be validated against InterviewTypeSchema options if not empty
 });
 type InterviewSetupValues = z.infer<typeof interviewSetupSchema>;
 
@@ -51,7 +57,7 @@ const fileToDataUri = (file: File): Promise<string> =>
 
 export default function MockInterviewSetupPage() {
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null); // Added error state
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -62,6 +68,7 @@ export default function MockInterviewSetupPage() {
       userSkills: '',
       targetCompanyName: '',
       jobContext: '',
+      interviewType: '',
     },
   });
 
@@ -85,7 +92,6 @@ export default function MockInterviewSetupPage() {
         return;
       }
     } else {
-      // This case should ideally not be reached due to zod validation making resumeFile required
       toast({
         title: "Resume Required",
         description: 'Please upload your resume to start the mock interview.',
@@ -96,12 +102,12 @@ export default function MockInterviewSetupPage() {
     }
     
     try {
-      // Store data in localStorage for the session page
       localStorage.setItem('mockInterviewSetup', JSON.stringify({
         resumeDataUri,
         userSkills: data.userSkills || undefined,
         targetCompanyName: data.targetCompanyName || undefined,
         jobContext: data.jobContext || undefined,
+        interviewType: data.interviewType && data.interviewType !== ANY_INTERVIEW_TYPE_VALUE ? data.interviewType as InterviewType : undefined,
       }));
 
       toast({
@@ -120,7 +126,6 @@ export default function MockInterviewSetupPage() {
       });
       setIsLoading(false);
     }
-    // setIsLoading(false); // isLoading should be reset by the new page or if navigation fails
   };
 
   return (
@@ -132,7 +137,7 @@ export default function MockInterviewSetupPage() {
             <CardTitle className="text-3xl">AI Mock Interview Setup</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Prepare for your interview. Upload your resume (required), and optionally add skills, target company, and job context to tailor the session.
+            Prepare for your interview. Upload your resume (required), and optionally add skills, target company, job context, and select an interview type to tailor the session.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -163,6 +168,41 @@ export default function MockInterviewSetupPage() {
                     </FormControl>
                     <FormDescriptionComponent>
                       PDF, DOC, DOCX, TXT, RTF, MD. Max 5MB.
+                    </FormDescriptionComponent>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="interviewType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg flex items-center gap-1">
+                      <ListChecks className="h-5 w-5 text-primary" /> Interview Type (Optional)
+                    </FormLabel>
+                    <Select 
+                        onValueChange={(selectedValue) => {
+                            field.onChange(selectedValue === ANY_INTERVIEW_TYPE_VALUE ? "" : selectedValue);
+                        }} 
+                        value={field.value || ANY_INTERVIEW_TYPE_VALUE}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select interview type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={ANY_INTERVIEW_TYPE_VALUE}>Any / Not Specified</SelectItem>
+                        {interviewTypeOptions.map(type => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescriptionComponent>
+                      Helps AI tailor question style (e.g., Behavioral, Technical Conceptual).
                     </FormDescriptionComponent>
                     <FormMessage />
                   </FormItem>
@@ -222,7 +262,7 @@ export default function MockInterviewSetupPage() {
                       />
                     </FormControl>
                     <FormDescriptionComponent>
-                      Provide a general role or interview type.
+                      Provide a general role or interview type (less specific than 'Interview Type' above).
                     </FormDescriptionComponent>
                     <FormMessage />
                   </FormItem>
