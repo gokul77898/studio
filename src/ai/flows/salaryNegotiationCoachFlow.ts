@@ -45,8 +45,8 @@ Instructions for Your Advanced Coaching:
 
 1.  **Overall Assessment ('overallAssessment'):**
     *   Provide a nuanced, qualitative assessment of the entire offer.
-    *   Consider if the base salary seems reasonable for the role, experience, and location, based on general knowledge AND explicitly factoring in `userMarketResearch` if provided. Discuss how the user's research aligns or diverges from general expectations.
-    *   If `otherOfferComponents` are detailed by the user, comment on their typical value or commonality for such roles (e.g., "The 10% bonus is standard, but the RSU grant seems generous/modest for this level.").
+    *   Consider if the base salary seems reasonable for the role, experience, and location, based on general knowledge AND explicitly factoring in userMarketResearch if provided. Discuss how the user's research aligns or diverges from general expectations.
+    *   If otherOfferComponents are detailed by the user, comment on their typical value or commonality for such roles (e.g., "The 10% bonus is standard, but the RSU grant seems generous/modest for this level.").
     *   Example: "Based on your {{{yearsOfExperience}}} years of experience for a {{{jobTitle}}} in {{{locationCity}}}, and considering your research notes which suggest [mention user's research point], the offered base of {{{offeredSalaryAmount}}} {{{offeredSalaryCurrency}}} appears to be [e.g., competitive, slightly below typical market range, a strong starting point]. The mentioned [specific other component] is a valuable part of the package. Let's explore a strategy to potentially enhance the base or other aspects."
 
 2.  **Suggested Counter-Offer Strategy ('suggestedCounterOffer'):**
@@ -54,8 +54,8 @@ Instructions for Your Advanced Coaching:
     *   'specificPoints': List 2-4 specific aspects the user could focus on (e.g., "Prioritize increasing the base salary.", "Negotiate for a higher signing bonus if base is inflexible.", "Request an additional week of PTO.").
     *   'reasoning': Provide a DETAILED rationale for your counter-offer strategy. Explain *why* this counter is justifiable, linking it directly to:
         *   The user's stated years of experience.
-        *   The implied demands/responsibilities of the `jobTitle` in `locationCity`.
-        *   Any relevant `userMarketResearch` findings.
+        *   The implied demands/responsibilities of the jobTitle in locationCity.
+        *   Any relevant userMarketResearch findings.
         *   General principles of value-based negotiation.
 
 3.  **Detailed Negotiation Script Points / Dialogue Examples ('negotiationScriptPoints'):**
@@ -66,7 +66,7 @@ Instructions for Your Advanced Coaching:
             *   Example Point: "Thank you so much for extending the offer for the {{{jobTitle}}} position! I'm very excited about the opportunity to join {{{companyName}}} and contribute to [mention something specific you're excited about, e.g., 'your innovative work in X']."
             *   Example Explanation: "Always start positively and reiterate your interest. This sets a collaborative tone."
         *   **Stating Your Counter (with Justification):**
-            *   Example Point: "Regarding the compensation, I've carefully reviewed the offer and done some research on similar roles in {{{locationCity}}} for someone with {{{yearsOfExperience}}} years of experience, including [mention your market research if you have it, e.g., 'data from Y source']. Based on this, and the value I believe I can bring, particularly my experience in [mention 1-2 key skills/experiences from your resume relevant to the role], I was hoping for a base salary in the range of [Your Suggested Ideal Counter Range from 'idealRange' field]. Would that be something you could consider?"
+            *   Example Point: "Regarding the compensation, I've carefully reviewed the offer and done some research on similar roles in {{{locationCity}}} for someone with {{{yearsOfExperience}}} years of experience, including [mention your market research if you have it, e.g., 'data from Y source']. Based on this, and the value I believe I can bring, particularly my experience in [mention 1-2 key skills/experiences from your resume relevant to the role], I was hoping for a base salary in the range of [Your Suggested Ideal Counter Range from the 'idealRange' field]. Would that be something you could consider?"
             *   Example Explanation: "Clearly state your desired range, anchor it to your value, experience, and market understanding. Phrasing it as a question keeps the door open for discussion."
         *   **Handling Potential Initial Pushback (e.g., "This is our standard offer"):**
             *   Example Point: "I understand that this might be the standard range. Given my specific track record in [mention a quantifiable achievement or unique skill that's highly relevant to the job description, if possible], I'm confident I can deliver exceptional results quickly. Is there any flexibility to recognize that, perhaps through a one-time signing bonus or a performance-based incentive on top of the base if the base itself is firm?"
@@ -74,11 +74,11 @@ Instructions for Your Advanced Coaching:
         *   **Focus on Politeness, Professionalism, and being Value-Driven.**
 
 4.  **Advanced Advice on Other Offer Components & Additional Considerations ('additionalConsiderations'):**
-    *   If the user detailed `otherOfferComponents`: For each significant component (e.g., bonus, stock, PTO, professional development), provide 1-2 specific (but general) questions the user could ask or points they could clarify/negotiate.
+    *   If the user detailed otherOfferComponents: For each significant component (e.g., bonus, stock, PTO, professional development), provide 1-2 specific (but general) questions the user could ask or points they could clarify/negotiate.
         *   Example for Bonus: "If a bonus is mentioned, ask: Is this a target bonus, and what were the average payouts for this role in the past year? Is it guaranteed or discretionary?"
         *   Example for Stock/RSUs: "For stock options/RSUs, inquire about: The total grant value, the vesting schedule (e.g., 4-year vest with 1-year cliff), and the type of options (e.g., ISOs, NSOs)."
         *   Example for PTO: "If PTO seems standard, you could ask: Is there room to negotiate an extra week of vacation, perhaps after the first year?"
-    *   If `otherOfferComponents` were not detailed by the user, list 2-4 general non-salary items they might consider (as before: professional development budget, performance review cycle, remote work flexibility, benefits package details, etc.).
+    *   If otherOfferComponents were not detailed by the user, list 2-4 general non-salary items they might consider (as before: professional development budget, performance review cycle, remote work flexibility, benefits package details, etc.).
     *   Conclude with a subtle reminder that your advice is general and real market conditions vary.
 
 Output Format: Ensure your response is strictly in the JSON format defined by the SalaryNegotiationOutputSchema.
