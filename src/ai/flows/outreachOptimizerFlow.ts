@@ -45,7 +45,7 @@ Context: User's Background Summary:
 {{/if}}
 
 Instructions for Analysis and Suggestions:
-1.  **Overall Assessment:** Provide a brief, qualitative assessment of the message's likely effectiveness. What's your general impression? (e.g., "This message is clear and professional," "Good intent, but the call to action could be stronger"). Do NOT provide a numerical "response likelihood score."
+1.  **Overall Assessment:** Provide a brief, qualitative assessment of the message's likely effectiveness *in eliciting a response*. What's your general impression of its potential? (e.g., "This message is clear and professional, giving it a good potential for a response.", "The message has good intent, but its current structure might lead to a low response rate; the call to action could be much stronger."). Do NOT provide a numerical "response likelihood score."
 2.  **Strengths (Optional):** Identify 1-2 positive aspects of the current message if any stand out.
 3.  **Areas for Improvement:** Identify 2-4 specific areas where the message (and subject line, if applicable) could be improved. Be specific. Examples:
     *   "The subject line could be more specific to grab attention."
