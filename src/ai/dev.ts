@@ -11,3 +11,4 @@ import './flows/careerPathAdvisorFlow';
 import './flows/outreachOptimizerFlow';
 import './flows/applicationStrategistFlow';
 import './flows/salaryNegotiationCoachFlow'; 
+import './flows/jobDescriptionAnalyzerFlow'; // Added new flow

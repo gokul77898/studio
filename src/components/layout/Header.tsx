@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Briefcase, Wand2, Lightbulb, FileScan, Mail, Brain, MessageSquare, Menu, X, List, Map, Send, UserCheck, DollarSign } from 'lucide-react'; // Added DollarSign
+import { Briefcase, Wand2, Lightbulb, FileScan, Mail, Brain, MessageSquare, Menu, X, List, Map, Send, UserCheck, DollarSign, Eye } from 'lucide-react'; // Added Eye
 import { useState } from 'react';
 
 export function Header() {
@@ -13,11 +13,12 @@ export function Header() {
     { href: "/ai-search", text: "AI Search", icon: Wand2 },
     { href: "/resume-analyzer", text: "Resume AI", icon: FileScan },
     { href: "/cover-letter-generator", text: "Cover Letter AI", icon: Mail },
-    { href: "/skill-gap-analyzer", text: "Skill Gap AI", icon: Brain }, // Or BarChart3
+    { href: "/skill-gap-analyzer", text: "Skill Gap AI", icon: Brain },
+    { href: "/job-description-analyzer", text: "JD Analyzer AI", icon: Eye }, // New Link
     { href: "/outreach-optimizer", text: "Outreach AI", icon: Send },
     { href: "/career-path-advisor", text: "Career Path AI", icon: Map },
     { href: "/application-strategist", text: "App Strategist AI", icon: UserCheck },
-    { href: "/salary-negotiator", text: "Salary Coach AI", icon: DollarSign }, // New Link
+    { href: "/salary-negotiator", text: "Salary Coach AI", icon: DollarSign },
     { href: "/mock-interview", text: "Mock Interview", icon: MessageSquare },
     { href: "/guidance", text: "Guidance", icon: Lightbulb },
   ];
