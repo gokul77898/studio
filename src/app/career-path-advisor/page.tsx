@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as FormDescriptionComponent } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, AlertTriangle, UploadCloud, Goal, Map, Briefcase, TrendingUp, DollarSign, Clock, ListChecks, Sparkles, BookOpen, Star, UserCheck } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, UploadCloud, Goal, Map, Briefcase, TrendingUp, DollarSign, Clock, ListChecks, Sparkles, BookOpen, Star, UserCheck, ArrowRightLeft, Lightbulb, BarChart3, AlertCircleIcon } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -93,7 +93,7 @@ export default function CareerPathAdvisorPage() {
       const input: CareerPathInput = {
         resumeDataUri: resumeDataUri,
         userGoals: data.userGoals || undefined,
-        employmentPreference: data.employmentPreference ? data.employmentPreference as EmploymentPreference : undefined,
+        employmentPreference: data.employmentPreference && data.employmentPreference !== ANY_PREFERENCE_VALUE ? data.employmentPreference as EmploymentPreference : undefined,
       };
       const result = await predictCareerPaths(input);
       setPredictionResult(result);
@@ -129,35 +129,69 @@ export default function CareerPathAdvisorPage() {
         
         {suggestion.conceptualSkills && suggestion.conceptualSkills.length > 0 && (
           <div>
-            <h4 className="font-semibold mb-1 flex items-center gap-1"><ListChecks className="h-4 w-4 text-accent"/>Key Skills Areas:</h4>
+            <h4 className="font-semibold mb-1 flex items-center gap-1 text-md"><ListChecks className="h-4 w-4 text-accent"/>Key Skills Areas:</h4>
             <div className="flex flex-wrap gap-2">
               {suggestion.conceptualSkills.map(skill => <Badge key={skill} variant="secondary">{skill}</Badge>)}
             </div>
           </div>
         )}
 
+        {suggestion.transferableSkillsFromResume && suggestion.transferableSkillsFromResume.length > 0 && (
+          <div>
+            <h4 className="font-semibold mb-1 flex items-center gap-1 text-md"><ArrowRightLeft className="h-4 w-4 text-accent"/>Transferable Skills (from your resume):</h4>
+            <div className="flex flex-wrap gap-2">
+              {suggestion.transferableSkillsFromResume.map(skill => <Badge key={skill} variant="outline" className="border-accent text-accent">{skill}</Badge>)}
+            </div>
+          </div>
+        )}
+
         <div>
-          <h4 className="font-semibold mb-1 flex items-center gap-1"><TrendingUp className="h-4 w-4 text-accent"/>High-Level Roadmap:</h4>
+          <h4 className="font-semibold mb-1 flex items-center gap-1 text-md"><TrendingUp className="h-4 w-4 text-accent"/>High-Level Roadmap:</h4>
           <ul className="list-disc space-y-1 pl-5 text-sm text-foreground/80">
             {suggestion.roadmap.map((step, stepIdx) => <li key={stepIdx}>{step}</li>)}
           </ul>
         </div>
 
+        {suggestion.learningResourceSuggestions && suggestion.learningResourceSuggestions.length > 0 && (
+          <div>
+            <h4 className="font-semibold mb-1 flex items-center gap-1 text-md"><Lightbulb className="h-4 w-4 text-accent"/>Learning Resource Ideas:</h4>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-foreground/80">
+              {suggestion.learningResourceSuggestions.map((tip, tipIdx) => <li key={tipIdx}>{tip}</li>)}
+            </ul>
+          </div>
+        )}
+        
         {suggestion.conceptualCertifications && suggestion.conceptualCertifications.length > 0 && (
           <div>
-            <h4 className="font-semibold mb-1 flex items-center gap-1"><BookOpen className="h-4 w-4 text-accent"/>Potential Learning/Certifications:</h4>
+            <h4 className="font-semibold mb-1 flex items-center gap-1 text-md"><BookOpen className="h-4 w-4 text-accent"/>Potential Learning/Certifications:</h4>
              <div className="flex flex-wrap gap-2">
                 {suggestion.conceptualCertifications.map(cert => <Badge key={cert} variant="outline">{cert}</Badge>)}
             </div>
           </div>
         )}
 
-        {suggestion.salaryOutlookGeneral && (
-            <p className="text-sm text-muted-foreground flex items-center gap-1"><DollarSign className="h-4 w-4"/><strong>Salary Outlook (General):</strong> {suggestion.salaryOutlookGeneral}</p>
+        {suggestion.industryOutlook && (
+            <p className="text-sm text-muted-foreground flex items-start gap-2"><BarChart3 className="h-4 w-4 mt-0.5 text-accent flex-shrink-0"/><strong>Industry Outlook:</strong> {suggestion.industryOutlook}</p>
         )}
-        {suggestion.timeEstimateGeneral && (
-            <p className="text-sm text-muted-foreground flex items-center gap-1"><Clock className="h-4 w-4"/><strong>Time Estimate (General):</strong> {suggestion.timeEstimateGeneral}</p>
+
+        {suggestion.potentialChallenges && suggestion.potentialChallenges.length > 0 && (
+          <div>
+            <h4 className="font-semibold mb-1 flex items-center gap-1 text-md"><AlertCircleIcon className="h-4 w-4 text-accent"/>Potential Challenges:</h4>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-foreground/80">
+              {suggestion.potentialChallenges.map((challenge, chalIdx) => <li key={chalIdx}>{challenge}</li>)}
+            </ul>
+          </div>
         )}
+
+        <Separator className="my-3" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {suggestion.salaryOutlookGeneral && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1"><DollarSign className="h-3.5 w-3.5"/><strong>Salary Outlook (General):</strong> {suggestion.salaryOutlookGeneral}</p>
+            )}
+            {suggestion.timeEstimateGeneral && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="h-3.5 w-3.5"/><strong>Time Estimate (General):</strong> {suggestion.timeEstimateGeneral}</p>
+            )}
+        </div>
       </AccordionContent>
     </AccordionItem>
   );
@@ -334,3 +368,4 @@ export default function CareerPathAdvisorPage() {
     </div>
   );
 }
+

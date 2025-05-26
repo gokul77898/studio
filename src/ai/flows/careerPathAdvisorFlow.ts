@@ -57,6 +57,10 @@ Instructions for Career Path Suggestions:
     *   conceptualCertifications (optional array of strings): List 1-3 general types of certifications or learning paths relevant to this career.
     *   salaryOutlookGeneral (optional string): Provide a very general, qualitative statement about the salary potential (e.g., "Strong earning potential with experience," "Typically offers competitive salaries," "Varies widely based on specialization"). Do NOT give specific numbers.
     *   timeEstimateGeneral (optional string): Provide a very general, qualitative statement about the potential time commitment for transition or establishment (e.g., "May require 1-2 years of focused skill development," "Transition possible within 6-12 months for experienced candidates," "Long-term path requiring continuous learning"). Do NOT give specific years unless it's a very broad range like "several years."
+    *   transferableSkillsFromResume (optional array of strings): Identify 2-4 key skills *directly from the user's resume* that are highly transferable to this suggested path. Be specific about the skill from the resume.
+    *   learningResourceSuggestions (optional array of strings): Provide 2-3 conceptual suggestions for learning. Examples: "Explore online courses in 'Cloud Architecture' on platforms like Coursera or AWS Skill Builder.", "Contribute to open-source projects in Python to enhance backend skills.", "Read industry blogs and follow thought leaders in Cybersecurity."
+    *   industryOutlook (optional string): A brief, general statement about the outlook for this role or industry. Example: "This field is experiencing significant growth with advancements in AI."
+    *   potentialChallenges (optional array of strings): List 1-2 potential challenges or important considerations for this path. Examples: "Keeping up with the rapid pace of technological change.", "May require strong analytical skills for complex problem-solving."
 4.  **Strongest Fit Recommendation (Optional):** After detailing the 3-5 paths, if one or two paths stand out as a particularly strong alignment based on the comprehensive analysis of the resume, goals, and employment preference, populate the 'strongestFitAnalysis' field. Include the 'recommendedPathTitle' (from the paths you suggested) and 'reasoning' (a 1-2 sentence explanation for why it's a strong fit). If no single path particularly stands out more than others, you can omit this field or leave it empty. Do not provide a numerical "success rate."
 5.  **Tone:** Be encouraging, insightful, and realistic.
 6.  **Output Format:** Strictly adhere to the JSON output schema defined. Ensure the 'suggestedPaths' array contains 3-5 items.
@@ -64,6 +68,8 @@ Instructions for Career Path Suggestions:
 Example for a roadmap item: "Focus on advanced Python programming and libraries like TensorFlow/PyTorch, building on your existing Python experience evident in the resume."
 Example for a conceptual skill: "Statistical Analysis and Modeling"
 Example for a conceptual certification: "AWS Certified Solutions Architect"
+Example for transferableSkillsFromResume: "Your experience with 'Project Management' listed under 'XYZ Corp' on your resume is highly relevant."
+Example for learningResourceSuggestions: "Take an online course on 'Data Visualization with Tableau' to enhance your analytics presentation skills."
 
 Do not invent information not deducible from the resume or common career knowledge.
 The "roadmap" should offer actionable, albeit high-level, advice, directly relevant to bridging any gaps or leveraging strengths identified from the user's specific resume.
@@ -109,6 +115,8 @@ const careerPathAdvisorFlow = ai.defineFlow(
             "Research current job market trends in areas that interest you based on your resume.",
             "Seek advice from career counselors or mentors in your field."
           ],
+           learningResourceSuggestions: ["General career advice websites or books may be helpful."],
+           industryOutlook: "The job market is constantly evolving; staying informed is key.",
         }],
       };
     }
@@ -121,3 +129,4 @@ export async function predictCareerPaths(
 ): Promise<CareerPathOutput> {
   return careerPathAdvisorFlow(input);
 }
+

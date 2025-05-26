@@ -33,6 +33,10 @@ export const CareerPathSuggestionSchema = z.object({
   conceptualCertifications: z.array(z.string()).optional().describe('Types of certifications or further learning that could be beneficial.'),
   salaryOutlookGeneral: z.string().optional().describe('A general, conceptual statement about salary potential (e.g., "Competitive", "High growth potential"). Not a precise prediction.'),
   timeEstimateGeneral: z.string().optional().describe('A general, conceptual statement about the time it might take to transition or establish in this path (e.g., "1-3 years with focused effort"). Not a precise timeline.'),
+  transferableSkillsFromResume: z.array(z.string()).optional().describe("Skills identified from the user's resume that are directly transferable to this career path."),
+  learningResourceSuggestions: z.array(z.string()).optional().describe("Conceptual suggestions for learning resources (e.g., 'Explore courses on cloud platforms like AWS/Azure', 'Contribute to open-source Python projects')."),
+  industryOutlook: z.string().optional().describe("A brief, general outlook for the industry or role (e.g., 'Strong growth projected due to increasing data adoption', 'Highly competitive field requiring continuous skill updates')."),
+  potentialChallenges: z.array(z.string()).optional().describe("Common challenges or important considerations for this career path (e.g., 'Keeping up with rapid technological advancements', 'May require strong problem-solving under pressure')."),
 });
 export type CareerPathSuggestion = z.infer<typeof CareerPathSuggestionSchema>;
 
@@ -50,3 +54,4 @@ export const CareerPathOutputSchema = z.object({
   }).optional().describe("The AI's analysis of which suggested path might be the strongest fit, with reasoning. This is a qualitative assessment."),
 });
 export type CareerPathOutput = z.infer<typeof CareerPathOutputSchema>;
+
