@@ -50,7 +50,13 @@ export const SalaryNegotiationInputSchema = z.object({
   performSalaryWebSearch: z
     .boolean()
     .optional()
-    .describe('Whether the AI should attempt to perform a web search for comparable salary data. This is experimental.'),
+    .describe('Whether the AI should attempt to perform a web search for comparable salary data.'),
+  offerLetterDataUri: z
+    .string()
+    .optional()
+    .describe(
+      "The user's offer letter as a data URI (e.g., 'data:application/pdf;base64,...') that must include a MIME type and use Base64 encoding. If provided, the AI should analyze its content for details like salary, bonus, stock, benefits, and other terms to inform its advice."
+    ),
 });
 export type SalaryNegotiationInput = z.infer<
   typeof SalaryNegotiationInputSchema
@@ -65,7 +71,7 @@ export const SalaryNegotiationOutputSchema = z.object({
   overallAssessment: z
     .string()
     .describe(
-      'A qualitative assessment of the offer (e.g., "The base salary appears competitive for your experience level and location, but there might be room to negotiate on the bonus structure."). This may include findings from web search if performed.'
+      'A qualitative assessment of the offer (e.g., "The base salary appears competitive for your experience level and location, but there might be room to negotiate on the bonus structure."). This may include findings from web search if performed and details from the offer letter.'
     ),
   suggestedCounterOffer: z
     .object({
@@ -80,7 +86,7 @@ export const SalaryNegotiationOutputSchema = z.object({
         .string()
         .optional()
         .describe(
-          'Brief reasoning for the suggested counter-offer strategy, based on the input and general market understanding (and web search if performed).'
+          'Brief reasoning for the suggested counter-offer strategy, based on the input (including offer letter), general market understanding (and web search if performed).'
         ),
     })
     .describe('Suggestions for a counter-offer.'),
@@ -94,7 +100,7 @@ export const SalaryNegotiationOutputSchema = z.object({
     .array(z.string())
     .optional()
     .describe(
-      'Other factors the user might consider or bring up in negotiation (e.g., "Ask about performance review cycles for future salary increases," "Clarify remote work policy," "Negotiate professional development budget").'
+      'Other factors the user might consider or bring up in negotiation (e.g., "Ask about performance review cycles for future salary increases," "Clarify remote work policy," "Negotiate professional development budget"). This should also consider terms found in the offer letter.'
     ),
   webSearchSummary: z
     .string()

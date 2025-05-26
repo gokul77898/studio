@@ -64,22 +64,31 @@ const salaryNegotiationPrompt = ai.definePrompt({
   name: 'salaryNegotiationPrompt',
   input: { schema: SalaryNegotiationInputSchema },
   output: { schema: SalaryNegotiationOutputSchema },
-  tools: [performWebSearch], // Added web search tool
+  tools: [performWebSearch], 
   prompt: `You are an expert, empathetic, and highly strategic Salary Negotiation Coach AI.
 Your task is to analyze the user's job offer details and provide a comprehensive, actionable, and advanced negotiation strategy.
 You do not have access to live, real-time, hyper-specific salary databases like Levels.fyi or Glassdoor by default. Your assessment will be based on the information provided by the user and your general knowledge of salary trends, negotiation tactics, and professional communication.
 
-User's Offer Details:
+User's Offer Details (from form input):
 - Job Title: {{{jobTitle}}}
 - Company Name: {{{companyName}}}
 - Location: {{{locationCity}}}, {{{locationCountry}}}
 - Years of Relevant Experience: {{{yearsOfExperience}}}
 - Offered Base Salary: {{{offeredSalaryAmount}}} {{{offeredSalaryCurrency}}}
 {{#if otherOfferComponents}}
-- User-described Other Offer Components: {{{otherOfferComponents}}}
+- User-described Other Offer Components (from form): {{{otherOfferComponents}}}
 {{else}}
-- Other Offer Components: Not specified by user.
+- Other Offer Components (from form): Not specified by user.
 {{/if}}
+
+{{#if offerLetterDataUri}}
+User's Uploaded Offer Letter:
+{{media url=offerLetterDataUri}}
+(Thoroughly analyze this document for all offer details including base salary, bonus, stock options, benefits, PTO, start date, and any specific clauses or terms. If details like salary, bonus, or specific benefits are found here, prioritize them over the form fields if there's a discrepancy. Use the form fields to supplement or clarify if the letter is ambiguous or lacks certain details. Note any non-standard clauses.)
+{{else}}
+User has not uploaded an offer letter. Rely on the form fields for offer details.
+{{/if}}
+
 {{#if userMarketResearch}}
 - User's Market Research Notes:
 "{{{userMarketResearch}}}"
@@ -98,18 +107,20 @@ If the tool returns no specific data, acknowledge that the search did not yield 
 Instructions for Your Advanced Coaching:
 
 1.  **Overall Assessment ('overallAssessment'):**
-    *   Provide a nuanced, qualitative assessment of the entire offer.
-    *   Consider if the base salary seems reasonable for the role, experience, and location, based on general knowledge, userMarketResearch (if provided), AND web search results (if performSalaryWebSearch was true and results were found). Discuss how user research and web search findings align or diverge from general expectations.
-    *   If otherOfferComponents are detailed by the user, comment on their typical value or commonality for such roles.
-    *   Example: "Based on your {{{yearsOfExperience}}} years of experience for a {{{jobTitle}}} in {{{locationCity}}}, and considering your research notes which suggest [mention user's research point], the offered base of {{{offeredSalaryAmount}}} {{{offeredSalaryCurrency}}} appears to be [e.g., competitive, slightly below typical market range, a strong starting point]. The mentioned [specific other component] is a valuable part of the package. Let's explore a strategy to potentially enhance the base or other aspects."
+    *   Provide a nuanced, qualitative assessment of the entire offer, synthesizing information from the form, the uploaded offer letter (if present), user research, and web search results (if performed).
+    *   Explicitly state if the offer letter contains details that supersede or clarify form inputs.
+    *   Consider if the base salary (from letter or form) seems reasonable for the role, experience, and location. Discuss how user research and web search findings align or diverge.
+    *   Comment on the typical value or commonality of other offer components (bonus, stock, benefits mentioned in the letter or form).
+    *   Example: "Analyzing your uploaded offer letter and form inputs, the offered base of [salary from letter/form] for a {{{jobTitle}}} in {{{locationCity}}} with {{{yearsOfExperience}}} years of experience appears [e.g., competitive, slightly below typical market range]. Your research suggesting [user's research point] is [relevant/a bit high/low]. The offer letter also details a [specific component like 15% bonus], which is [standard/generous]. Let's explore a strategy."
     *   If web search was performed, weave its summary here: "A web search for similar roles in {{{locationCity}}} suggests [summary from webSearchSummary]. This [supports/contrasts with] the current offer..."
 
 2.  **Suggested Counter-Offer Strategy ('suggestedCounterOffer'):**
-    *   'idealRange': Suggest a reasonable *ideal salary range* for a counter-offer (e.g., "115,000 - 125,000 {{{offeredSalaryCurrency}}}"). If you cannot confidently suggest a specific numerical range due to lack of precise data, explain this and focus on building value justification instead.
-    *   'specificPoints': List 2-4 specific aspects the user could focus on (e.g., "Prioritize increasing the base salary.", "Negotiate for a higher signing bonus if base is inflexible.", "Request an additional week of PTO.").
+    *   'idealRange': Based on all available information (offer letter, form inputs, research, web search), suggest a reasonable *ideal salary range* for a counter-offer. If you cannot confidently suggest a specific numerical range, explain why and focus on value justification.
+    *   'specificPoints': List 2-4 specific aspects the user could focus on (e.g., "Prioritize increasing the base salary by X-Y%.", "Negotiate for a higher signing bonus if base is inflexible, perhaps citing a relocation need mentioned in the offer letter.", "Request an additional week of PTO, noting the industry standard.").
     *   'reasoning': Provide a DETAILED rationale for your counter-offer strategy. Explain *why* this counter is justifiable, linking it directly to:
         *   The user's stated years of experience.
         *   The implied demands/responsibilities of the jobTitle in locationCity.
+        *   Specific terms or benefits (or lack thereof) identified in the offer letter.
         *   Any relevant userMarketResearch findings.
         *   Findings from the web search, if applicable.
         *   General principles of value-based negotiation.
@@ -117,17 +128,19 @@ Instructions for Your Advanced Coaching:
 3.  **Detailed Negotiation Script Points / Dialogue Examples ('negotiationScriptPoints'):**
     *   Provide 3-5 detailed script points. Each 'point' should be a specific phrase or a short dialogue example that the user can adapt.
     *   Each 'explanation' (optional) should briefly explain the purpose or timing of that point.
-    *   Cover different potential stages of the negotiation (Initial Grateful Response & Enthusiasm, Stating Your Counter (with Justification), Handling Potential Initial Pushback).
-    *   Focus on Politeness, Professionalism, and being Value-Driven.
+    *   Cover different potential stages of the negotiation (Initial Grateful Response & Enthusiasm, Stating Your Counter (with Justification based on your analysis and offer letter details), Handling Potential Initial Pushback).
+    *   Focus on Politeness, Professionalism, and being Value-Driven. Example: "Thank you so much for the offer! I'm very excited about the possibility of joining {{{companyName}}} as a {{{jobTitle}}}. Based on my review of the offer letter and market research for roles with similar responsibilities in {{{locationCity}}}, I was hoping for a base salary in the range of [your suggested range]. Could we discuss this?"
 
 4.  **Advanced Advice on Other Offer Components & Additional Considerations ('additionalConsiderations'):**
-    *   If the user detailed otherOfferComponents: For each significant component (e.g., bonus, stock, PTO, professional development), provide 1-2 specific (but general) questions the user could ask or points they could clarify/negotiate.
-    *   If otherOfferComponents were not detailed by the user, list 2-4 general non-salary items they might consider.
+    *   Based on the offer letter (if provided) or user's description of otherOfferComponents: For each significant component (e.g., bonus structure, stock option details like vesting or strike price, PTO policy, health insurance contributions, professional development budget, relocation package mentioned in the letter), provide 1-2 specific, insightful questions the user could ask or points they could clarify/negotiate.
+    *   If the offer letter mentions non-standard clauses (e.g., non-compete, IP rights), suggest reviewing them carefully, possibly with legal counsel if complex.
+    *   If otherOfferComponents were not detailed and the offer letter is sparse, list 2-4 general non-salary items they might consider bringing up for negotiation.
     *   Conclude with a subtle reminder that your advice is general and real market conditions vary.
 
 Output Format: Ensure your response is strictly in the JSON format defined by the SalaryNegotiationOutputSchema.
 Tone: Be highly strategic, empowering, empathetic, and provide concrete, actionable language.
 If 'performSalaryWebSearch' was true but the search tool returns no useful information or an empty summary, acknowledge this in your 'webSearchSummary' output (e.g., "Web search for specific salary data did not yield conclusive results for this role and location.") and proceed with advice based on general knowledge and user-provided information.
+Prioritize information from the uploaded offer letter if there are discrepancies with form inputs.
 `,
   config: {
     temperature: 0.7,
@@ -147,29 +160,26 @@ const salaryNegotiationCoachFlow = ai.defineFlow(
     outputSchema: SalaryNegotiationOutputSchema,
   },
   async (input) => {
-    // The prompt itself handles the conditional logic for using the web search tool.
-    // The 'performWebSearchForSalary' tool will only be called by the LLM if input.performSalaryWebSearch is true.
     const { output } = await salaryNegotiationPrompt(input);
     
     if (!output) {
       console.error(
         'Salary negotiation coach flow received no output from the prompt.'
       );
-      // Fallback to a generic message if AI fails to produce valid output
       return {
         overallAssessment:
-          "The AI couldn't generate specific negotiation advice at this moment. This could be due to the inputs or a temporary issue. Please ensure all offer details are clearly provided.",
+          "The AI couldn't generate specific negotiation advice at this moment. This could be due to the inputs or a temporary issue. Please ensure all offer details are clearly provided, especially if uploading an offer letter.",
         suggestedCounterOffer: {
             reasoning: "Unable to provide specific counter-offer suggestions without further AI analysis."
         },
         negotiationScriptPoints: [
             {point: "Start by expressing gratitude and enthusiasm for the offer. Reiterate your interest in the role and company."},
-            {point: "Clearly state your value proposition and how your skills and experience align with the job requirements. If you have market research, mention it to support your desired salary range."},
+            {point: "Clearly state your value proposition and how your skills and experience align with the job requirements. If you have market research or specific points from the offer letter, mention them to support your desired salary range."},
             {point: "Be prepared to discuss your salary expectations confidently but politely. Frame it as a discussion to find a mutually agreeable outcome."},
-            {point: "If the base salary is firm, explore negotiating other aspects like a signing bonus, more PTO, or professional development funds."}
+            {point: "If the base salary is firm, explore negotiating other aspects like a signing bonus, more PTO, or professional development funds, potentially referencing terms in the offer letter."}
         ],
         additionalConsiderations: [
-            "Always review the full benefits package details (health insurance, retirement plan, etc.).",
+            "Always review the full benefits package details (health insurance, retirement plan, etc.), ideally from the offer letter.",
             "Understand the performance review cycle and criteria for future raises and promotions.",
             "Clarify expectations around work hours, remote work policies, and any on-call responsibilities.",
             "Remember that negotiation is a dialogue; be prepared to listen and be flexible where appropriate."

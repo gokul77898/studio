@@ -11,17 +11,34 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as FormDescriptionComponent } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Loader2, Wand2, AlertTriangle, Sparkles, Briefcase, Building, MapPin, CalendarCheck, FileSignature, DollarSign, MessageSquare, ListChecks, Info, Globe } from 'lucide-react';
+import { Loader2, Wand2, AlertTriangle, Sparkles, Briefcase, Building, MapPin, CalendarCheck, FileSignature, DollarSign, MessageSquare, ListChecks, Info, Globe, UploadCloud } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { coachSalaryNegotiation, type SalaryNegotiationInput, type SalaryNegotiationOutput } from '@/ai/flows/salaryNegotiationCoachFlow';
 import { SalaryNegotiationInputSchema } from '@/ai/schemas/salaryNegotiationCoachSchema';
-import { Checkbox } from '@/components/ui/checkbox'; // Added Checkbox import
-import { Label } from '@/components/ui/label'; // Added Label import
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB for offer letters
+const ACCEPTED_FILE_TYPES = [
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "text/plain",
+  "text/markdown"
+];
 
 type SalaryNegotiationFormValues = SalaryNegotiationInput;
+
+const fileToDataUri = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 export default function SalaryNegotiatorPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +58,8 @@ export default function SalaryNegotiatorPage() {
       offeredSalaryCurrency: 'USD',
       otherOfferComponents: '',
       userMarketResearch: '',
-      performSalaryWebSearch: false, // Default to false
+      performSalaryWebSearch: false,
+      offerLetterDataUri: undefined, // Initialize
     }
   });
 
@@ -50,8 +68,34 @@ export default function SalaryNegotiatorPage() {
     setError(null);
     setAdviceResult(null);
 
+    let offerLetterDataUriFromUpload: string | undefined = undefined;
+    const offerLetterFile = form.getValues('offerLetterFile') as File | undefined; // Temp field for react-hook-form
+
+    if (offerLetterFile) {
+      try {
+        offerLetterDataUriFromUpload = await fileToDataUri(offerLetterFile);
+      } catch (fileError) {
+        console.error("Error converting offer letter to data URI:", fileError);
+        toast({
+            title: "File Processing Error",
+            description: "Failed to process offer letter file. Please try a different file or proceed without uploading.",
+            variant: "destructive",
+        });
+        form.setError("offerLetterDataUri" as any, { type: "manual", message: "Could not process file." }); // Use 'as any' for temp field
+        setIsLoading(false);
+        return;
+      }
+    }
+    
+    const inputData: SalaryNegotiationInput = {
+        ...data,
+        offerLetterDataUri: offerLetterDataUriFromUpload,
+    };
+    // @ts-ignore
+    delete inputData.offerLetterFile; // Remove temp field before sending to AI
+
     try {
-      const result = await coachSalaryNegotiation(data);
+      const result = await coachSalaryNegotiation(inputData);
       setAdviceResult(result);
       toast({
         title: "Negotiation Strategy Ready!",
@@ -81,12 +125,48 @@ export default function SalaryNegotiatorPage() {
             <CardTitle className="text-3xl">AI Salary Negotiation Coach</CardTitle>
           </div>
           <CardDescription className="text-md">
-            Enter your job offer details. The AI will provide an assessment, suggest counter-offer points, and help craft negotiation scripts. Optionally, allow AI to search the web for salary context.
+            Enter your job offer details. Upload your offer letter for detailed analysis. The AI will provide an assessment, suggest counter-offer points, and help craft negotiation scripts.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+              <FormField
+                // This is a temporary field for react-hook-form to manage the file input.
+                // The actual data URI is handled in `handleSubmit`.
+                name="offerLetterFile" // Not in schema, handled manually
+                control={form.control}
+                render={({ field: { onChange, value, ...restField } }) => (
+                  <FormItem>
+                    <FormLabel className="text-lg flex items-center gap-1"><UploadCloud className="h-5 w-5" /> Upload Offer Letter (Optional)</FormLabel>
+                    <FormControl>
+                       <div className="flex items-center gap-2">
+                        <label htmlFor="offerLetterFile-input" className="cursor-pointer flex items-center gap-2 px-4 py-2 border border-input rounded-md text-sm hover:bg-accent hover:text-accent-foreground transition-colors">
+                          <UploadCloud className="h-4 w-4" />
+                           {(value as File)?.name ? `Selected: ${(value as File).name.substring(0,30)}${(value as File).name.length > 30 ? '...' : ''}` : 'Choose Offer Letter File'}
+                        </label>
+                        <Input
+                          id="offerLetterFile-input"
+                          type="file"
+                          accept={ACCEPTED_FILE_TYPES.join(",")}
+                          onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              onChange(file || undefined);
+                          }}
+                          className="hidden"
+                          {...restField}
+                        />
+                         {value && <Button variant="outline" size="sm" onClick={() => onChange(undefined)}>Clear</Button>}
+                       </div>
+                    </FormControl>
+                    <FormDescriptionComponent>
+                      Recommended. PDF, DOC, DOCX, TXT, MD. Max 5MB. AI will analyze its content.
+                    </FormDescriptionComponent>
+                    {/* @ts-ignore */}
+                    <FormMessage name="offerLetterDataUri" /> 
+                  </FormItem>
+                )}
+              />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -170,6 +250,7 @@ export default function SalaryNegotiatorPage() {
                             value={field.value ?? ''}
                         />
                         </FormControl>
+                        <FormDescriptionComponent>Enter the numeric amount. If offer letter uploaded, AI will prioritize that.</FormDescriptionComponent>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -181,6 +262,7 @@ export default function SalaryNegotiatorPage() {
                     <FormItem>
                       <FormLabel className="text-lg">Currency</FormLabel>
                       <FormControl><Input placeholder="e.g., USD, EUR, CAD" {...field} maxLength={3} /></FormControl>
+                      <FormDescriptionComponent>E.g., USD, EUR, CAD.</FormDescriptionComponent>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -194,12 +276,12 @@ export default function SalaryNegotiatorPage() {
                       <FormLabel className="text-lg flex items-center gap-1"><FileSignature className="h-4 w-4"/> Other Offer Components (Bonus, Stock, Benefits)</FormLabel>
                       <FormControl>
                         <Textarea
-                            placeholder="e.g., 15% annual bonus, $50k RSU vested over 4 years, comprehensive health insurance, 4 weeks PTO..."
+                            placeholder="e.g., 15% annual bonus, $50k RSU vested over 4 years, comprehensive health insurance, 4 weeks PTO... (AI will prioritize details from uploaded letter if available)"
                             className="min-h-[100px]"
                             {...field}
                         />
                         </FormControl>
-                        <FormDescriptionComponent>Provide as much detail as possible.</FormDescriptionComponent>
+                        <FormDescriptionComponent>Provide as much detail as possible if not uploading letter or if letter is unclear.</FormDescriptionComponent>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -229,14 +311,15 @@ export default function SalaryNegotiatorPage() {
                     <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4 shadow-sm bg-muted/30">
                       <FormControl>
                         <Checkbox
+                          id="performSalaryWebSearch-checkbox" // Added unique id for checkbox
                           checked={field.value}
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
-                        <Label htmlFor="performSalaryWebSearch" className="flex items-center gap-1 cursor-pointer">
+                        <Label htmlFor="performSalaryWebSearch-checkbox" className="flex items-center gap-1 cursor-pointer">
                           <Globe className="h-4 w-4 text-primary"/>
-                           Attempt Web Search for Salary Data (Experimental)
+                           Attempt Web Search for Salary Data
                         </Label>
                         <FormDescriptionComponent>
                           If checked, the AI will try to search online for publicly available salary data (e.g., from Levels.fyi, Glassdoor via a general search) to provide additional context. This uses a simulated search tool.
