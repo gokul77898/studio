@@ -130,41 +130,39 @@ export async function fetchRealTimeJobs(filters: FilterCriteria, limit: number =
   }
   
   // Default query if no keywords or specific location is provided
-  const query = queryParts.join(' ') || 'latest jobs worldwide';
+  const query = queryParts.join(' ') || 'latest tech jobs worldwide';
 
 
   const queryParams = new URLSearchParams({
     query: query,
     page: '1',
     num_pages: '1', 
-    date_posted: 'month', // Fetch jobs posted in the last month by default
+    date_posted: 'month', 
   });
 
   if (filters.jobTypes && filters.jobTypes.length > 0) {
-    // JSearch expects comma-separated, uppercase employment types without dashes
     const apiJobTypes = filters.jobTypes.map(jt => {
-        switch(jt) { // Map to JSearch expected values more explicitly
+        switch(jt) {
             case 'Full-time': return 'FULLTIME';
             case 'Part-time': return 'PARTTIME';
             case 'Contract': return 'CONTRACTOR';
             case 'Internship': return 'INTERN';
-            default: return jt.toUpperCase().replace(/[\s-]/g, ''); // Fallback, remove spaces and dashes
+            default: return jt.toUpperCase().replace(/[\s-]/g, '');
         }
     }).join(',');
     queryParams.append('employment_types', apiJobTypes);
   }
 
-  // Handle remote job filtering more specifically for JSearch
   if (filters.location?.toLowerCase().includes('remote')) {
      queryParams.append('remote_jobs_only', 'true');
   }
 
 
-  const endpoint = `${API_BASE_URL}/search`;
+  const fullUrl = `${API_BASE_URL}/search?${queryParams.toString()}`;
 
   try {
-    console.log(`Fetching jobs from JSearch: ${endpoint} with query params: ${queryParams.toString()}`);
-    const response = await fetch(`${endpoint}?${queryParams.toString()}`, {
+    console.log(`Fetching jobs from JSearch: ${fullUrl}`);
+    const response = await fetch(fullUrl, {
       method: 'GET',
       headers: {
         'X-RapidAPI-Key': API_KEY,
@@ -175,7 +173,7 @@ export async function fetchRealTimeJobs(filters: FilterCriteria, limit: number =
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`JSearch API Error ${response.status}: ${response.statusText}`, errorBody);
+      console.error(`JSearch API Error ${response.status} for URL ${fullUrl}: ${response.statusText}`, errorBody);
       throw new Error(`Failed to fetch jobs from JSearch (${response.status}): ${errorBody || response.statusText}`);
     }
 
@@ -211,13 +209,8 @@ export async function fetchRealTimeJobs(filters: FilterCriteria, limit: number =
     });
 
   } catch (error) {
-    console.error('Error in fetchRealTimeJobs (JSearch):', error);
-    if (error instanceof Error && (error.message.includes('API Key is missing') || error.message.includes('JOB_SEARCH_API_KEY is not set'))) {
-      // Already handled by the initial check
-    } else {
-       // Re-throw other errors to be caught by the calling page
-       throw error;
-    }
-    return []; // Fallback to empty array on error
+    console.error(`Error in fetchRealTimeJobs (JSearch) for URL ${fullUrl}:`, error);
+    // Re-throw the error to be caught by the calling page and displayed to the user
+    throw error; 
   }
 }
