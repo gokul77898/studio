@@ -8,4 +8,5 @@ import './flows/generateCoverLetterFlow';
 import './flows/skillGapAnalysisFlow';
 import './flows/mockInterviewFlow';
 import './flows/careerPathAdvisorFlow';
-import './flows/outreachOptimizerFlow'; // Added new flow
+import './flows/outreachOptimizerFlow';
+import './flows/applicationStrategistFlow'; // Added new flow

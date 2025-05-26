@@ -2,7 +2,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Briefcase, Wand2, Lightbulb, FileScan, Mail, Brain, MessageSquare, Menu, X, List, Map, Send } from 'lucide-react'; // Added Map, Send
+import { Briefcase, Wand2, Lightbulb, FileScan, Mail, Brain, MessageSquare, Menu, X, List, Map, Send, UserCheck } from 'lucide-react'; // Added UserCheck
 import { useState } from 'react';
 
 export function Header() {
@@ -14,8 +14,9 @@ export function Header() {
     { href: "/resume-analyzer", text: "Resume AI", icon: FileScan },
     { href: "/cover-letter-generator", text: "Cover Letter AI", icon: Mail },
     { href: "/skill-gap-analyzer", text: "Skill Gap AI", icon: Brain },
-    { href: "/outreach-optimizer", text: "Outreach AI", icon: Send }, // New Link
+    { href: "/outreach-optimizer", text: "Outreach AI", icon: Send },
     { href: "/career-path-advisor", text: "Career Path AI", icon: Map },
+    { href: "/application-strategist", text: "App Strategist AI", icon: UserCheck }, // New Link
     { href: "/mock-interview", text: "Mock Interview", icon: MessageSquare },
     { href: "/guidance", text: "Guidance", icon: Lightbulb },
   ];
